@@ -3,11 +3,12 @@ import http from "http";
 import { bootstrapApp } from "./app/bootstrap";
 import app from "./app";
 import { prisma } from "./lib/prisma";
+import config from "./app/config";
 
 // Start server
 async function startServer() {
   let server: Server;
-  const port = process.env.port || 3000;
+  const port = config.port || 3000;
   try {
     await bootstrapApp();
     console.log("Database connected");

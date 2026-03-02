@@ -9,6 +9,7 @@ import cookieParser from "cookie-parser";
 // import "./app/config/passport";
 // import { rateLimiter,  } from "./app/middlewares/rateLimiter";
 import compression from "compression";
+import config from "./app/config";
 
 
 const app: Application = express();
@@ -16,7 +17,7 @@ const app: Application = express();
 // middlewares
 app.use(
   cors({
-    origin: process.env.frontend_url,
+    origin: config.frontend_url,
     credentials: true,
   }),
 );
@@ -38,7 +39,7 @@ app.use("/api/v1", router);
 app.get("/", (_req: Request, res: Response) => {
   res.send({
     message: "Server Is Running..",
-    environment: process.env.NODE_ENV,
+    environment: config.node_env,
     uptime: process.uptime().toFixed(2) + " second",
     timeStamp: new Date().toISOString(),
   });
