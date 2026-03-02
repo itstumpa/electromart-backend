@@ -12,3 +12,4 @@ npx ts-node prisma/analytics-seed.ts
 npx tsx prisma/admin-seed.ts
 
 ```
+
