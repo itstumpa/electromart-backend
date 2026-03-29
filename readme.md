@@ -17,19 +17,13 @@ docker-compose up --build
 docker-compose up -d
 npx prisma migrate dev --name init
 
-
-### to kill/delete running port:
-netstat -ano | findstr :5000
-taskkill /PID 12345 /F
-docker-compose down
-
-then again command:
+then start again command:
 docker-compose up -d
 
 to stop everything:
 docker-compose down
 
-to check ant error:
+to check any error:
 docker logs electromart_app
 
 to check actually running:
@@ -50,6 +44,12 @@ npx prisma migrate dev --name init
 5. When done → Ctrl+C to stop logs, then docker-compose down
 
 
-Run Prisma Studio
+Run Prisma Studio:
 npx prisma studio --port 5555 --browser none
+
+
+### to kill/delete running port:
+netstat -ano | findstr :5000
+taskkill /PID 12345 /F
+docker-compose down
 ```

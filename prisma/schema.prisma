@@ -5,19 +5,37 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+enum Role {
+  CUSTOMER
+  VENDOR
+  ADMIN
+}
 
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(CUSTOMER)
+  createdAt DateTime @default(now())
+  store     Store?
+}
 
-model User { 
-  id    Int     @id @default(autoincrement()) 
-  email String  @unique
-  name  String?
-  posts Post[]
-} 
-model Post { 
-  id        Int     @id @default(autoincrement()) 
-  title     String
-  content   String?
-  published Boolean @default(false) 
-  author    User    @relation(fields: [authorId], references: [id]) 
-  authorId  Int
-} 
+model Store {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  ownerId   String   @unique
+  owner     User     @relation(fields: [ownerId], references: [id])
+  createdAt DateTime @default(now())
+  products  Product[]
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+  createdAt   DateTime @default(now())
+}
