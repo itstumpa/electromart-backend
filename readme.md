@@ -6,9 +6,6 @@ npx prisma migrate dev --name init
 
 ```
 npm install -D ts-node
-npx ts-node prisma/seedStoreAndCategory.ts
-npx ts-node prisma/seedProducts.ts
-npx ts-node prisma/analytics-seed.ts
 npx tsx prisma/admin-seed.ts
 
 ```
@@ -22,7 +19,6 @@ npx prisma migrate dev --name init
 
 
 ### to kill/delete running port:
-
 netstat -ano | findstr :5000
 taskkill /PID 12345 /F
 docker-compose down
@@ -46,9 +42,14 @@ npx prisma migrate dev --name init
 
 ## 🧒 Daily Routine From Now On
 ```
+```
 1. Open Docker Desktop → leave it running
 2. Open VS Code terminal
 3. Type → docker-compose up
 4. Code normally, changes reflect live with hot reload!
 5. When done → Ctrl+C to stop logs, then docker-compose down
+
+
+Run Prisma Studio
+npx prisma studio --port 5555 --browser none
 ```
