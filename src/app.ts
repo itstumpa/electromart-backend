@@ -1,15 +1,14 @@
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import router from "./app/routers";
-// import config from "./app/config/index";
-// import notFound from "./app/middlewares/notFound";
-// import globalErrorHandler from "./app/middlewares/globalErrorHandler";
+import passport from "passport";
+import "./app/config/passport";
+import config from "./app/config/index";
+import notFound from "./app/middlewares/notFound";
+import globalErrorHandler from "./app/middlewares/globalErrorHandler";
 import cookieParser from "cookie-parser";
-// import passport from "passport";
-// import "./app/config/passport";
 // import { rateLimiter,  } from "./app/middlewares/rateLimiter";
 import compression from "compression";
-import config from "./app/config";
 
 
 const app: Application = express();
@@ -26,7 +25,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-// app.use(passport.initialize());
+app.use(passport.initialize());
 
 // Gzip compression
 app.use(compression());
@@ -45,7 +44,7 @@ app.get("/", (_req: Request, res: Response) => {
   });
 });
 
-// app.use(globalErrorHandler);
-// app.use(notFound);
+app.use(globalErrorHandler);
+app.use(notFound);
 
 export default app;
