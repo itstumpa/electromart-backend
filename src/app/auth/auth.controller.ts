@@ -1,17 +1,35 @@
-// src/app/modules/auth/auth.controller.ts
 import { Request, Response } from "express";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
+// import AppError from "../../../utils/AppError"; // ✅ import added
 import * as AuthService from "./auth.service";
+import ApiError from "../../utils/apiErrors";
 
 export const signup = catchAsync(async (req: Request, res: Response) => {
   const user = await AuthService.signup(req.body);
-  sendResponse(res, { statusCode: 201, success: true, message: "Account created. Please verify your email.", data: user });
+  sendResponse(res, {
+    statusCode: 201,
+    success: true,
+    message: "Account created. Please verify your email.",
+    data: user,
+  });
 });
 
+// ✅ Removed verifyEmailHandler — this is the single source of truth
 export const verifyEmail = catchAsync(async (req: Request, res: Response) => {
-  const result = await AuthService.verifyEmail(req.body.token);
-  sendResponse(res, { statusCode: 200, success: true, message: result.message, data: null });
+  const token = req.query.token as string; // ✅ read from query param, not body
+
+  if (!token) {
+    throw new ApiError(400, "Invalid or missing token");
+  }
+
+  const result = await AuthService.verifyEmail(token);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: result.message,
+    data: null,
+  });
 });
 
 export const resendEmailVerification = catchAsync(async (req: Request, res: Response) => {
@@ -19,10 +37,16 @@ export const resendEmailVerification = catchAsync(async (req: Request, res: Resp
   sendResponse(res, { statusCode: 200, success: true, message: result.message, data: null });
 });
 
+// auth.controller.ts
 export const signin = catchAsync(async (req: Request, res: Response) => {
   const { email, password } = req.body;
-  const result = await AuthService.signin(email, password);
-  sendResponse(res, { statusCode: 200, success: true, message: "Signed in successfully", data: result });
+  const result = await AuthService.signin(email, password, res); // ✅ pass res
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Signed in successfully",
+    data: result,
+  });
 });
 
 export const refreshToken = catchAsync(async (req: Request, res: Response) => {
@@ -51,8 +75,13 @@ export const getMe = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: 200, success: true, message: "User fetched", data: user });
 });
 
+// auth.controller.ts
 export const logout = catchAsync(async (req: Request, res: Response) => {
-  // stateless JWT — client just deletes the token
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+  });
   sendResponse(res, { statusCode: 200, success: true, message: "Logged out successfully", data: null });
 });
 

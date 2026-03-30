@@ -14,7 +14,7 @@ const router = Router();
 
 // ── Public ─────────────────────────────────────────────────────────────────
 router.post("/signup", validate(signupSchema), authController.signup);
-router.post("/verify-email", authController.verifyEmail);
+router.get("/verify-email", authController.verifyEmail);
 router.post("/resend-verification", authController.resendEmailVerification);
 router.post("/signin", validate(signinSchema), authController.signin);
 router.post("/refresh-token", authController.refreshToken);

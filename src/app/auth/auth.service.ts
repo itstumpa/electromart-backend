@@ -1,21 +1,25 @@
 // src/app/modules/auth/auth.service.ts
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import jwt, { SignOptions } from "jsonwebtoken";
 import crypto from "crypto";
 import { prisma } from "../../lib/prisma";
 import { sendEmail } from "../../utils/sendEmail";
 import ApiError from "../../utils/apiErrors";
-
+import config from "../config/index";
+import { Response } from "express";
 // ── Token helpers ─────────────────────────────────────────────────────────────
+
+const ACCESS_EXPIRES = (process.env.JWT_ACCESS_EXPIRES || "15m") as SignOptions["expiresIn"];
+const REFRESH_EXPIRES = (process.env.JWT_REFRESH_EXPIRES || "7d") as SignOptions["expiresIn"];
 
 const generateAccessToken = (userId: string, role: string) =>
   jwt.sign({ sub: userId, role }, process.env.JWT_ACCESS_SECRET as string, {
-    expiresIn: process.env.JWT_ACCESS_EXPIRES || "15m",
+    expiresIn: ACCESS_EXPIRES,
   });
 
 const generateRefreshToken = (userId: string) =>
   jwt.sign({ sub: userId }, process.env.JWT_REFRESH_SECRET as string, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES || "7d",
+    expiresIn: REFRESH_EXPIRES,
   });
 
 // ── Signup ────────────────────────────────────────────────────────────────────
@@ -47,7 +51,8 @@ export const signup = async (data: {
     select: { id: true, name: true, email: true, role: true },
   });
 
-  const verifyUrl = `${process.env.CLIENT_URL}/verify-email?token=${emailVerifyToken}`;
+  const verifyUrl = `${process.env.APP_URL}/api/v1/auth/verify-email?token=${emailVerifyToken}`;
+  
 
   await sendEmail({
     to: user.email,
@@ -60,6 +65,8 @@ export const signup = async (data: {
 
   return user;
 };
+
+
 
 // ── Verify Email ──────────────────────────────────────────────────────────────
 
@@ -113,7 +120,7 @@ export const resendEmailVerification = async (email: string) => {
 
 // ── Signin ────────────────────────────────────────────────────────────────────
 
-export const signin = async (email: string, password: string) => {
+export const signin = async (email: string, password: string, res: Response) => {
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) throw new ApiError(401, "Invalid email or password");
 
@@ -126,15 +133,18 @@ export const signin = async (email: string, password: string) => {
   const accessToken = generateAccessToken(user.id, user.role);
   const refreshToken = generateRefreshToken(user.id);
 
+  setAuthCookies(res, accessToken, refreshToken); // ✅ both in cookies
+
+  // ✅ Set refresh token as httpOnly cookie
+//   res.cookie("refreshToken", refreshToken, {
+//     httpOnly: true,
+//     secure: process.env.NODE_ENV === "production",
+//     sameSite: "strict",
+//     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+//   });
+
   return {
-    accessToken,
-    refreshToken,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role },
   };
 };
 
@@ -144,7 +154,7 @@ export const refreshToken = async (token: string) => {
   try {
     const payload = jwt.verify(
       token,
-      process.env.JWT_REFRESH_SECRET as string
+      config.refreshSecret as string
     ) as { sub: string };
 
     const user = await prisma.user.findUnique({ where: { id: payload.sub } });
@@ -156,6 +166,14 @@ export const refreshToken = async (token: string) => {
     throw new ApiError(401, "Invalid or expired refresh token");
   }
 };
+
+
+// ─── Logout ───────────────────────────────────────────────────────────────────
+
+export const logout = async () => {
+  return { message: "Logged out successfully" };
+};
+
 
 // ── Forgot Password ───────────────────────────────────────────────────────────
 
