@@ -77,11 +77,8 @@ export const getMe = catchAsync(async (req: Request, res: Response) => {
 
 // auth.controller.ts
 export const logout = catchAsync(async (req: Request, res: Response) => {
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-  });
+  res.clearCookie("accessToken", { path: "/" });
+  res.clearCookie("refreshToken", { path: "/" });
   sendResponse(res, { statusCode: 200, success: true, message: "Logged out successfully", data: null });
 });
 

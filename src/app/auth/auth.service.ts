@@ -7,6 +7,10 @@ import { sendEmail } from "../../utils/sendEmail";
 import ApiError from "../../utils/apiErrors";
 import config from "../config/index";
 import { Response } from "express";
+import { setAuthCookies } from "../../utils/cookieHelpers";
+
+
+
 // ── Token helpers ─────────────────────────────────────────────────────────────
 
 const ACCESS_EXPIRES = (process.env.JWT_ACCESS_EXPIRES || "15m") as SignOptions["expiresIn"];
@@ -134,14 +138,6 @@ export const signin = async (email: string, password: string, res: Response) => 
   const refreshToken = generateRefreshToken(user.id);
 
   setAuthCookies(res, accessToken, refreshToken); // ✅ both in cookies
-
-  // ✅ Set refresh token as httpOnly cookie
-//   res.cookie("refreshToken", refreshToken, {
-//     httpOnly: true,
-//     secure: process.env.NODE_ENV === "production",
-//     sameSite: "strict",
-//     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-//   });
 
   return {
     user: { id: user.id, name: user.name, email: user.email, role: user.role },
