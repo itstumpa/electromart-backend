@@ -1,0 +1,37 @@
+# This is the name of your pipeline
+name: Electromart CI
+
+# WHEN should this run?
+on:
+  push:
+    branches: [main, develop]   # runs when you push to main or develop
+  pull_request:
+    branches: [main]            # runs when someone opens a PR to main
+
+# WHAT should it do?
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest      # use a fresh Linux machine
+
+    steps:
+      # Step 1: Download your code onto the machine
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Install Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'        # use Node 20
+          cache: 'npm'              # cache packages to speed things up
+
+      # Step 3: Install your packages (npm install)
+      - name: Install dependencies
+        run: npm ci                 # 'npm ci' is safer than 'npm install' in pipelines
+
+      # Step 4: Run your tests
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test            # tell your app it's in test mode
