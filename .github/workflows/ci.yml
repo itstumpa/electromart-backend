@@ -15,14 +15,14 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'     # upgraded from 20
+          node-version: '24'     
           cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Type check          # ✅ already had this
+      - name: Type check          
         run: npx tsc --noEmit
 
-      - name: Build               # ✅ only builds if tests pass
+      - name: Build             
         run: npm run build
