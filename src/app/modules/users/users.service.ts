@@ -1,5 +1,8 @@
+// src/app/modules/users/user.service.ts
+import { Role } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { prisma } from "../../../lib/prisma";
+import ApiError from "../../../utils/apiErrors";
 
 // CREATE
 export const createUser = async (data: {
@@ -30,7 +33,7 @@ export const createUser = async (data: {
   return userWithoutPassword;
 };
 
-// GET ALL (admin use)
+// ADMIN — get all users
 export const getAllUsers = async () => {
   return prisma.user.findMany({
     select: {
@@ -38,13 +41,14 @@ export const getAllUsers = async () => {
       name: true,
       email: true,
       role: true,
+      isEmailVerified: true,
       createdAt: true,
-      // password is excluded
     },
+    orderBy: { createdAt: "desc" },
   });
 };
 
-// GET ONE
+// ADMIN/USER — get single user
 export const getUserById = async (id: string) => {
   const user = await prisma.user.findUnique({
     where: { id },
@@ -53,39 +57,56 @@ export const getUserById = async (id: string) => {
       name: true,
       email: true,
       role: true,
+      isEmailVerified: true,
       createdAt: true,
+      store: {
+        select: { id: true, name: true, slug: true },
+      },
     },
   });
-
-  if (!user) throw new Error("User not found");
+  if (!user) throw new ApiError(404, "User not found");
   return user;
 };
 
-// UPDATE
+// USER — update own profile only
 export const updateUser = async (
-  id: string,
+  targetId: string,
+  requesterId: string,
+  requesterRole: Role,
   data: { name?: string; email?: string }
 ) => {
-  const user = await prisma.user.findUnique({ where: { id } });
-  if (!user) throw new Error("User not found");
+  // only the user themselves can update (admin cannot update others profile)
+  if (targetId !== requesterId) {
+    throw new ApiError(403, "You can only update your own profile");
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: targetId } });
+  if (!user) throw new ApiError(404, "User not found");
 
   return prisma.user.update({
-    where: { id },
+    where: { id: targetId },
     data,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-    },
+    select: { id: true, name: true, email: true, role: true },
   });
 };
 
-// DELETE
+// ADMIN — delete any user
 export const deleteUser = async (id: string) => {
   const user = await prisma.user.findUnique({ where: { id } });
-  if (!user) throw new Error("User not found");
+  if (!user) throw new ApiError(404, "User not found");
 
   await prisma.user.delete({ where: { id } });
   return { message: "User deleted successfully" };
+};
+
+// ADMIN — change user role
+export const changeUserRole = async (id: string, role: Role) => {
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) throw new ApiError(404, "User not found");
+
+  return prisma.user.update({
+    where: { id },
+    data: { role },
+    select: { id: true, name: true, email: true, role: true },
+  });
 };

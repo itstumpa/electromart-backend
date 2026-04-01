@@ -1,6 +1,6 @@
 import { Router } from "express";
+import { authRoute } from "../modules/auth/auth.routes";
 import UserRoutes from "../modules/users/users.routes";
-import { authRoute } from "../auth/auth.routes";
 //import { authenticate, authorize } from "../middlewares/auth";
 
 const router = Router();
