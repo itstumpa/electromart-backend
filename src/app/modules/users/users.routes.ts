@@ -10,7 +10,7 @@ const router = Router();
 router.post("/", validate(createUserSchema), UserController.createUser);
 router.get("/", authenticate, authorize("ADMIN"), UserController.getAllUsers);
 router.get("/:id", authenticate, authorize("ADMIN"), UserController.getUserById);
-router.patch("/:id", validate(updateUserSchema), UserController.updateUser);
+router.patch("/:id", authenticate, validate(updateUserSchema), UserController.updateUser);
 router.delete("/:id", authenticate, authorize("ADMIN", "CUSTOMER"), UserController.deleteUser);
 
 export default router;

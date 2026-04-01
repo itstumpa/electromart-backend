@@ -32,7 +32,7 @@ export const signup = async (data: {
   name: string;
   email: string;
   password: string;
-  role?: "CUSTOMER" | "VENDOR";
+  role?: "CUSTOMER" | "VENDOR" | "ADMIN";
 }) => {
   const existing = await prisma.user.findUnique({
     where: { email: data.email },
