@@ -1,3 +1,4 @@
+import "./app/config/env";
 import { Server } from "http";
 import http from "http";
 import { bootstrapApp } from "./app/bootstrap";
@@ -11,12 +12,10 @@ async function startServer() {
   const port = config.port || 3000;
   try {
     await bootstrapApp();
-    console.log("Database connected");
-
     const server = http.createServer(app);
 
     server.listen(port, () => {
-      console.log(`Server is running on http://localhost:${port} `);
+      console.log(`✅ Server is running on http://localhost:${port} `);
 
     });
     
@@ -25,7 +24,7 @@ async function startServer() {
     const exitHandler = () => {
       if (server) {
         server.close(() => {
-          console.log(`Server closed gracefully.`);
+          console.log(`❌ Server closed gracefully.`);
           process.exit(1);
         });
       } else {
@@ -51,7 +50,7 @@ async function startServer() {
       }
     });
   } catch (error) {
-    console.log("server failed to start", error);
+    console.log("❌ server failed to start", error);
     await prisma.$disconnect();
     process.exit(1);
   }
