@@ -21,6 +21,7 @@ export const getStoreById = catchAsync(async (req: Request, res: Response) => {
 
 export const updateStore = catchAsync(async (req: Request, res: Response) => {
   const store = await StoreService.updateStore(req.params.id as string, req.user!.id, req.body);
+  console.log("USER:", req.user);
   sendResponse(res, { statusCode: 200, success: true, message: "Store updated successfully", data: store });
 });
 

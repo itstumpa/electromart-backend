@@ -23,6 +23,7 @@ model User {
   emailVerifyExpiry   DateTime?
   passwordResetToken  String?
   passwordResetExpiry DateTime?
+  orders              Order[]
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 }
@@ -36,6 +37,7 @@ model Store {
   ownerId     String    @unique
   owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   products    Product[]
+  orderItems OrderItem[]
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -62,6 +64,8 @@ model Product {
   images      ProductImage[]
   variants    ProductVariant[]
   isActive    Boolean          @default(true)
+
+  orderItems OrderItem[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 }
@@ -81,4 +85,37 @@ model ProductVariant {
   stock     Int     @default(0)
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  customerId  String
+  customer    User        @relation(fields: [customerId], references: [id])
+  totalAmount Decimal
+  status      OrderStatus @default(PENDING)
+  items       OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model OrderItem {
+  id           String      @id @default(cuid())
+  orderId      String
+  order        Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product     @relation(fields: [productId], references: [id])
+  storeId      String
+  store        Store       @relation(fields: [storeId], references: [id])
+  quantity     Int
+  priceAtTime  Decimal     // snapshot of price when ordered
+  status       OrderStatus @default(PENDING)  // vendor controls this
+  createdAt    DateTime    @default(now())
 }
