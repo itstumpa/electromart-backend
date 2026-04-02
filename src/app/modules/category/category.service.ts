@@ -1,6 +1,7 @@
 // src/app/modules/category/category.service.ts
 import { prisma } from "../../../lib/prisma";
-import ApiError from "../../../utils/ApiError";
+import ApiError from "../../../utils/apiErrors";
+
 
 const generateSlug = (name: string) =>
   name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
