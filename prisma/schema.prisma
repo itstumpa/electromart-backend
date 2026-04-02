@@ -24,6 +24,7 @@ model User {
   passwordResetToken  String?
   passwordResetExpiry DateTime?
   orders              Order[]
+  cart Cart?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 }
@@ -66,6 +67,7 @@ model Product {
   isActive    Boolean          @default(true)
 
   orderItems OrderItem[]
+  cartItems CartItem[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 }
@@ -118,4 +120,26 @@ model OrderItem {
   priceAtTime  Decimal     // snapshot of price when ordered
   status       OrderStatus @default(PENDING)  // vendor controls this
   createdAt    DateTime    @default(now())
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cartId, productId]) // one product per cart, quantity handles count
 }
