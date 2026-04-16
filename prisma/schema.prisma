@@ -24,6 +24,8 @@ model User {
   passwordResetToken  String?
   passwordResetExpiry DateTime?
   orders              Order[]
+  notifications  Notification[]
+  returnRequests ReturnRequest[]
   cart Cart?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
@@ -104,6 +106,9 @@ model Order {
   totalAmount Decimal
   status      OrderStatus @default(PENDING)
   items       OrderItem[]
+  couponId  String?
+  coupon    Coupon?  @relation(fields: [couponId], references: [id])
+  discount  Decimal  @default(0)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 }
@@ -117,6 +122,7 @@ model OrderItem {
   storeId      String
   store        Store       @relation(fields: [storeId], references: [id])
   quantity     Int
+  returnRequest ReturnRequest?
   priceAtTime  Decimal     // snapshot of price when ordered
   status       OrderStatus @default(PENDING)  // vendor controls this
   createdAt    DateTime    @default(now())
@@ -142,4 +148,44 @@ model CartItem {
   updatedAt DateTime @updatedAt
 
   @@unique([cartId, productId]) // one product per cart, quantity handles count
+}
+// ── Notifications ─────────────────────────────────────────────────────────────
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   // ORDER_PLACED, ORDER_STATUS_CHANGED, NEW_ORDER_VENDOR, RETURN_REQUESTED, RETURN_RESOLVED
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+// ── Coupons ───────────────────────────────────────────────────────────────────
+model Coupon {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  discountPercent Float   // e.g. 10 means 10%
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  orders         Order[]
+}
+// ── Return/Refund ─────────────────────────────────────────────────────────────
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ReturnRequest {
+  id          String       @id @default(cuid())
+  orderItemId String       @unique
+  orderItem   OrderItem    @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    User         @relation(fields: [customerId], references: [id])
+  reason      String
+  status      ReturnStatus @default(PENDING)
+  vendorNote  String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }

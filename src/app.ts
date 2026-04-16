@@ -9,6 +9,8 @@ import globalErrorHandler from "./app/middlewares/globalErrorHandler";
 import cookieParser from "cookie-parser";
 // import { rateLimiter,  } from "./app/middlewares/rateLimiter";
 import compression from "compression";
+import http from "http";
+import { initSocket } from "./socket/socket";
 
 
 const app: Application = express();
@@ -31,6 +33,9 @@ app.use(passport.initialize());
 app.use(compression());
 // Redis Rate limit 
 // app.use(rateLimiter());
+
+const httpServer = http.createServer(app);
+initSocket(httpServer);
 
 // MAIN ROUTE
 app.use("/api/v1", router);

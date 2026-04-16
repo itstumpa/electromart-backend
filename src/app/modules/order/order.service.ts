@@ -2,6 +2,14 @@
 import { OrderStatus } from "@prisma/client";
 import { prisma } from "../../../lib/prisma";
 import ApiError from "../../../utils/apiErrors";
+import { createNotification } from "../notification/notification.service";
+import { sendEmail } from "../../../utils/sendEmail";
+import {
+  orderConfirmedEmail,
+  newOrderVendorEmail,
+  orderStatusUpdateEmail,
+} from "../../../utils/emailTemplates";
+
 
 export const placeOrder = async (customerId: string) => {
   // get cart from DB
@@ -74,6 +82,73 @@ export const placeOrder = async (customerId: string) => {
 
     return newOrder;
   });
+    // get customer info for email
+  const customer = await prisma.user.findUnique({
+    where: { id: customerId },
+    select: { name: true, email: true },
+  });
+
+  // 1. notify customer — in-app + email
+  await createNotification({
+    userId: customerId,
+    title: "Order Placed",
+    message: `Your order #${order.id.slice(-6).toUpperCase()} has been placed successfully`,
+    type: "ORDER_PLACED",
+  });
+
+  const emailData = orderConfirmedEmail(
+    customer!.name,
+    order.id,
+    Number(totalAmount),
+    cart.items.map((i) => ({
+      name: i.product.name,
+      quantity: i.quantity,
+      price: Number(i.product.price),
+    }))
+  );
+  await sendEmail({ to: customer!.email, ...emailData });
+
+  // 2. notify each unique vendor — in-app + email
+  const vendorMap = new Map<string, { ownerId: string; name: string; email: string; storeName: string; items: { name: string; quantity: number }[] }>();
+
+  for (const item of cart.items) {
+    const store = await prisma.store.findUnique({
+      where: { id: item.product.storeId },
+      include: { owner: { select: { id: true, name: true, email: true } } },
+    });
+    if (!store) continue;
+
+    if (!vendorMap.has(store.id)) {
+      vendorMap.set(store.id, {
+        ownerId: store.owner.id,
+        name: store.owner.name,
+        email: store.owner.email,
+        storeName: store.name,
+        items: [],
+      });
+    }
+    vendorMap.get(store.id)!.items.push({
+      name: item.product.name,
+      quantity: item.quantity,
+    });
+  }
+
+  for (const vendor of vendorMap.values()) {
+    await createNotification({
+      userId: vendor.ownerId,
+      title: "New Order Received",
+      message: `You have a new order with ${vendor.items.length} item(s) in ${vendor.storeName}`,
+      type: "NEW_ORDER_VENDOR",
+    });
+
+    const vendorEmail = newOrderVendorEmail(
+      vendor.name,
+      vendor.storeName,
+      order.id,
+      vendor.items
+    );
+    await sendEmail({ to: vendor.email, ...vendorEmail });
+  }
 
   return order;
 };
@@ -208,6 +283,31 @@ export const updateOrderItemStatus = async (
     where: { id: orderItemId },
     data: { status },
   });
+
+  // get order + customer info
+  const orderWithCustomer = await prisma.order.findUnique({
+    where: { id: item.orderId },
+    include: { customer: { select: { id: true, name: true, email: true } } },
+  });
+
+  if (orderWithCustomer) {
+    await createNotification({
+      userId: orderWithCustomer.customer.id,
+      title: "Order Status Updated",
+      message: `Your order item status changed to ${status}`,
+      type: "ORDER_STATUS_CHANGED",
+    });
+
+    const statusEmail = orderStatusUpdateEmail(
+      orderWithCustomer.customer.name,
+      item.orderId,
+      status
+    );
+    await sendEmail({
+      to: orderWithCustomer.customer.email,
+      ...statusEmail,
+    });
+  }
 
   // if all items in order are DELIVERED, mark whole order as DELIVERED
   const allItems = await prisma.orderItem.findMany({
