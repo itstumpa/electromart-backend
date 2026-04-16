@@ -11,6 +11,13 @@ enum Role {
   ADMIN
 }
 
+enum NotificationTargetType {
+  USER
+  USERS
+  ROLE
+  ALL_USERS
+}
+
 model User {
   id                  String    @id @default(cuid())
   name                String
@@ -23,6 +30,7 @@ model User {
   emailVerifyExpiry   DateTime?
   passwordResetToken  String?
   passwordResetExpiry DateTime?
+  emailNotificationEnabled Boolean @default(true)
   orders              Order[]
   notifications  Notification[]
   returnRequests ReturnRequest[]

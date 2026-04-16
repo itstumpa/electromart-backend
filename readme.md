@@ -55,8 +55,36 @@ npx prisma studio --port 5555 --browser none
 ### to kill/delete running port:
 netstat -ano | findstr :5000
 taskkill /PID 12345 /F
+
 docker-compose down
 
 
-ssh=secure shell(use for secure login)
+# for send notification target type
+{
+  "targetType": "ROLE",
+  "role": "VENDOR",
+  "title": "Vendor Policy Updated",
+  "message": "Please review the new rules"
+}
+
+{
+  "targetType": "ALL_USERS",
+  "title": "Big Sale Tomorrow",
+  "message": "50% off starts tomorrow"
+}
+
+{
+  "targetType": "USER",
+  "userId": "abc123",
+  "title": "Account Approved",
+  "message": "Your account has been approved"
+}
+
+{
+  "targetType": "USERS",
+  "userIds": ["id1", "id2", "id3"],
+  "title": "Important Update",
+  "message": "Please check your dashboard"
+}
+
 ```
