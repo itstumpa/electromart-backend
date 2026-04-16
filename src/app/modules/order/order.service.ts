@@ -37,36 +37,43 @@ export const placeOrder = async (customerId: string) => {
   );
 
   // create order with items
-  const order = await prisma.order.create({
-    data: {
-      customerId,
-      totalAmount,
-      status: "PENDING",
-      items: {
-        create: cart.items.map((item) => ({
-          productId: item.productId,
-          storeId: item.product.storeId,
-          quantity: item.quantity,
-          priceAtTime: item.product.price,
-          status: "PENDING",
-        })),
+  const order = await prisma.$transaction(async (tx) => {
+    const newOrder = await tx.order.create({
+      data: {
+        customerId,
+        totalAmount,
+        items: {
+          create: cart.items.map((item) => ({
+            productId: item.productId,
+            storeId: item.product.storeId,
+            quantity: item.quantity,
+            priceAtTime: item.product.price,
+          })),
+        },
       },
-    },
-    include: {
-      items: true,
-    },
-  });
-
-  // reduce stock for each product
-  for (const item of cart.items) {
-    await prisma.product.update({
-      where: { id: item.productId },
-      data: { stock: { decrement: item.quantity } },
+      include: {
+        items: {
+          include: {
+            product: { select: { id: true, name: true } },
+            store: { select: { id: true, name: true } },
+          },
+        },
+      },
     });
-  }
 
-  // clear cart
-  await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+    // decrement stock
+    for (const item of cart.items) {
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { stock: { decrement: item.quantity } },
+      });
+    }
+
+    // clear DB cart after order
+    await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+
+    return newOrder;
+  });
 
   return order;
 };
