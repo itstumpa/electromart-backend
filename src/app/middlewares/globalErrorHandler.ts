@@ -1,96 +1,122 @@
-import { Prisma } from "@prisma/client";
+// src/middlewares/globalErrorHandler.ts
 import { Request, Response, NextFunction } from "express";
-import httpStatus from "http-status";
-import config from "../config";
+import { Prisma } from "@prisma/client";
+import { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
 import { ZodError } from "zod";
 import ApiError from "../../utils/apiErrors";
 
-const globalErrorHandler = (
-  err: any,
-  _req: Request,
-  res: Response,
-  _next: NextFunction,
-) => {
-  if (config.node_env === "development") {
-    console.log(err);
-  }
+const isDev = process.env.NODE_ENV === "development";
 
-  let statusCode: number = httpStatus.INTERNAL_SERVER_ERROR;
-  let message = "Something went wrong";
-
-  /* -------------------- Zod Error -------------------- */
-if (err instanceof ZodError) {
-  return res.status(httpStatus.BAD_REQUEST).json({
-    success: false,
-    message: "Zod Validation Error",
-    error: err.issues.map((e) => ({
-      path: e.path.join(".") || "body",
-      message: e.message,
-      code: e.code,
-    })),
-  });
+interface ErrorResponse {
+  success: false;
+  statusCode: number;
+  message: string;
+  errors?: object;
+  stack?: string;
 }
 
-  // ---------------- Prisma Known Errors ---------------- */
+const globalErrorHandler = (
+  err: unknown,
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  let statusCode = 500;
+  let message = "Something went wrong";
+  let errors: object | undefined;
+
+  // ── 1. Our own ApiError ───────────────────────────────────────────────────
+  if (err instanceof ApiError) {
+    statusCode = err.statusCode;
+    message = isDev ? err.message : "Something went wrong";
+  }
+
+  // ── 2. Zod validation error ───────────────────────────────────────────────
+  else if (err instanceof ZodError) {
+    statusCode = 400;
+    message = "Validation failed";
+    errors = err.issues.map((e) => ({
+      field: e.path.join("."),
+      message: e.message,
+    }));
+  }
+
+  // ── 3. Prisma known errors ────────────────────────────────────────────────
   else if (err instanceof Prisma.PrismaClientKnownRequestError) {
     switch (err.code) {
-      case "P2002":
-        statusCode = httpStatus.CONFLICT;
-        message = "Duplicate entry already exists";
+      case "P2002": {
+        // unique constraint failed
+        const field = (err.meta?.target as string[])?.join(", ") || "field";
+        statusCode = 409;
+        message = `A record with this ${field} already exists`;
         break;
-
+      }
       case "P2025":
-        statusCode = httpStatus.NOT_FOUND;
-        message = "Requested resource not found";
+        // record not found
+        statusCode = 404;
+        message = "Record not found";
         break;
-
       case "P2003":
-        statusCode = httpStatus.BAD_REQUEST;
-        message = "Invalid relation reference";
+        // foreign key constraint
+        statusCode = 400;
+        message = "Related record not found";
         break;
-
-      case "P2011":
-        statusCode = httpStatus.BAD_REQUEST;
-        message = "Missing required field";
+      case "P2014":
+        statusCode = 400;
+        message = "Invalid relation data provided";
         break;
-
       default:
-        statusCode = httpStatus.BAD_REQUEST;
+        statusCode = 400;
         message = "Database operation failed";
-        break;
     }
   }
 
-  // ---------------- Prisma Validation Error ---------------- */
+  // ── 4. Prisma validation error ────────────────────────────────────────────
   else if (err instanceof Prisma.PrismaClientValidationError) {
-    statusCode = httpStatus.BAD_REQUEST;
-    message = "Invalid data provided";
+    statusCode = 400;
+    message = "Invalid data provided to database";
   }
 
-  // ---------------- Prisma Init Error ---------------- */
-  else if (err instanceof Prisma.PrismaClientInitializationError) {
-    statusCode = httpStatus.BAD_GATEWAY;
-    message = "Database connection failed";
+  // ── 5. JWT errors ─────────────────────────────────────────────────────────
+  else if (err instanceof TokenExpiredError) {
+    statusCode = 401;
+    message = "Your session has expired, please log in again";
+  } else if (err instanceof JsonWebTokenError) {
+    statusCode = 401;
+    message = "Invalid token, please log in again";
   }
 
-  // ---------------- custom AppError ---------------- */
-  else if (err instanceof ApiError) {
-    statusCode = err.statusCode;
-    message = err.message;
+  // ── 6. Multer errors ──────────────────────────────────────────────────────
+  else if (err instanceof Error && err.name === "MulterError") {
+    statusCode = 400;
+    message =
+      ((err as Error & { code?: string }).code === "LIMIT_FILE_SIZE")
+        ? "File too large — maximum size is 5MB"
+        : (err as Error & { code?: string }).code === "LIMIT_FILE_COUNT"
+        ? "Too many files — maximum is 5 images"
+        : "File upload error";
   }
 
-  // ---------------- Error ---------------- */
+  // ── 7. Generic JS error ───────────────────────────────────────────────────
   else if (err instanceof Error) {
-    statusCode = httpStatus.BAD_GATEWAY;
-    message = err.message;
+    message = err.message || "Something went wrong";
   }
 
-  res.status(statusCode).json({
+  // ── Build response ────────────────────────────────────────────────────────
+  const response: ErrorResponse = {
     success: false,
+    statusCode,
     message,
-    error: config.node_env === "development" ? err : undefined,
-    stack: config.node_env === "development" ? err.stack : undefined,
-  });
+    ...(errors && { errors }),
+    ...(isDev && err instanceof Error && { stack: err.stack }),
+  };
+
+  // log in dev
+  if (isDev) {
+    console.error(`[ERROR] ${req.method} ${req.path}`, err);
+  }
+
+  res.status(statusCode).json(response);
 };
 
 export default globalErrorHandler;
