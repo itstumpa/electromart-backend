@@ -1,75 +1,19 @@
-// src/app/modules/product/product.service.ts
 import { prisma } from "../../../lib/prisma";
 import ApiError from "../../../utils/apiErrors";
 import { IOptions, paginationHelper } from "../../shared/paginationHelper";
 
+import {
+  getOrSetCache,
+  invalidateCache,
+  invalidateCachePattern,
+} from "../../../utils/cache";
 
-// FULL-TEXT SEARCH
-export const searchProducts = async (
-  query: { q?: string; categoryId?: string; minPrice?: number; maxPrice?: number },
-  options: IOptions
-) => {
-  const { page, limit, skip, sortBy, sortOrder } =
-    paginationHelper.calculatePagination(options);
+import { CacheKeys } from "../../../utils/cacheKeys";
 
-  const where: any = {
-    isActive: true,
-    ...(query.categoryId && { categoryId: query.categoryId }),
-    ...((query.minPrice || query.maxPrice) && {
-      price: {
-        ...(query.minPrice && { gte: query.minPrice }),
-        ...(query.maxPrice && { lte: query.maxPrice }),
-      },
-    }),
-    ...(query.q && {
-      OR: [
-        { name: { contains: query.q, mode: "insensitive" } },
-        { description: { contains: query.q, mode: "insensitive" } },
-        { category: { name: { contains: query.q, mode: "insensitive" } } },
-        { store: { name: { contains: query.q, mode: "insensitive" } } },
-      ],
-    }),
-  };
 
-  const [data, total] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      include: {
-        images: { take: 1 },
-        category: { select: { id: true, name: true } },
-        store: { select: { id: true, name: true } },
-        _count: { select: { reviews: true } },
-      },
-      orderBy: { [sortBy]: sortOrder },
-      skip,
-      take: limit,
-    }),
-    prisma.product.count({ where }),
-  ]);
-
-  return {
-    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    data,
-  };
-};
-
-// AUTOCOMPLETE — returns just names, fast
-export const getSearchSuggestions = async (q: string) => {
-  if (!q || q.length < 2) return [];
-
-  const products = await prisma.product.findMany({
-    where: {
-      isActive: true,
-      name: { contains: q, mode: "insensitive" },
-    },
-    select: { id: true, name: true, images: { take: 1 } },
-    take: 8, // max 8 suggestions
-  });
-
-  return products;
-};
-
-// VENDOR — create product in their store
+// ─────────────────────────────────────────────
+// VENDOR — create product
+// ─────────────────────────────────────────────
 export const createProduct = async (
   ownerId: string,
   data: {
@@ -82,7 +26,6 @@ export const createProduct = async (
     variants?: { name: string; value: string; price?: number; stock: number }[];
   }
 ) => {
-  // make sure vendor has a store
   const store = await prisma.store.findUnique({ where: { ownerId } });
   if (!store) throw new ApiError(404, "You need to create a store first");
 
@@ -93,7 +36,7 @@ export const createProduct = async (
 
   const { images, variants, ...productData } = data;
 
-  return prisma.product.create({
+  const product = await prisma.product.create({
     data: {
       ...productData,
       storeId: store.id,
@@ -102,9 +45,17 @@ export const createProduct = async (
     },
     include: { images: true, variants: true, category: true },
   });
+
+  // invalidate product cache
+  await invalidateCachePattern("products:*");
+
+  return product;
 };
 
-// PUBLIC — get all active products (with filters)
+
+// ─────────────────────────────────────────────
+// PUBLIC — get all products (cached)
+// ─────────────────────────────────────────────
 export const getAllProducts = async (
   query: {
     categoryId?: string;
@@ -118,98 +69,206 @@ export const getAllProducts = async (
   const { page, limit, skip, sortBy, sortOrder } =
     paginationHelper.calculatePagination(options);
 
-  const where = {
-    isActive: true,
-    ...(query.categoryId && { categoryId: query.categoryId }),
-    ...(query.storeId && { storeId: query.storeId }),
-    ...(query.search && {
-      name: { contains: query.search, mode: "insensitive" as const },
-    }),
-    ...((query.minPrice || query.maxPrice) && {
-      price: {
-        ...(query.minPrice && { gte: query.minPrice }),
-        ...(query.maxPrice && { lte: query.maxPrice }),
-      },
-    }),
-  };
+  const cacheKey = JSON.stringify({ query, options });
 
-  const [data, total] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      include: {
-        images: true,
-        category: true,
-        store: { select: { id: true, name: true, slug: true } },
-      },
-      orderBy: { [sortBy]: sortOrder },
-      skip,
-      take: limit,
-    }),
-    prisma.product.count({ where }),
-  ]);
+  return getOrSetCache(
+    CacheKeys.ALL_PRODUCTS(cacheKey),
+    300, // 5 min cache
+    async () => {
+      const where = {
+        isActive: true,
+        ...(query.categoryId && { categoryId: query.categoryId }),
+        ...(query.storeId && { storeId: query.storeId }),
+        ...(query.search && {
+          name: { contains: query.search, mode: "insensitive" as const },
+        }),
+        ...((query.minPrice || query.maxPrice) && {
+          price: {
+            ...(query.minPrice && { gte: query.minPrice }),
+            ...(query.maxPrice && { lte: query.maxPrice }),
+          },
+        }),
+      };
 
-  return {
-    meta: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-    data,
-  };
+      const [data, total] = await Promise.all([
+        prisma.product.findMany({
+          where,
+          include: {
+            images: true,
+            category: true,
+            store: { select: { id: true, name: true, slug: true } },
+          },
+          orderBy: { [sortBy]: sortOrder },
+          skip,
+          take: limit,
+        }),
+        prisma.product.count({ where }),
+      ]);
+
+      return {
+        meta: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+        data,
+      };
+    }
+  );
 };
 
-// PUBLIC — get single product
+
+// ─────────────────────────────────────────────
+// PUBLIC — get single product (cached)
+// ─────────────────────────────────────────────
 export const getProductById = async (id: string) => {
-  const product = await prisma.product.findUnique({
-    where: { id },
-    include: {
-      images: true,
-      variants: true,
-      category: true,
-      store: { select: { id: true, name: true, slug: true } },
-    },
-  });
-  if (!product) throw new ApiError(404, "Product not found");
-  return product;
+  return getOrSetCache(
+    CacheKeys.SINGLE_PRODUCT(id),
+    600, // 10 min cache
+    async () => {
+      const product = await prisma.product.findUnique({
+        where: { id },
+        include: {
+          images: true,
+          variants: true,
+          category: true,
+          store: { select: { id: true, name: true, slug: true } },
+        },
+      });
+
+      if (!product) throw new ApiError(404, "Product not found");
+      return product;
+    }
+  );
 };
 
-// VENDOR — update own product only
+
+// ─────────────────────────────────────────────
+// SEARCH — cached (short TTL)
+// ─────────────────────────────────────────────
+export const searchProducts = async (
+  query: any,
+  options: IOptions
+) => {
+  const cacheKey = JSON.stringify({ query, options });
+
+  return getOrSetCache(
+    CacheKeys.SEARCH_PRODUCTS(cacheKey),
+    120, // 2 min
+    async () => {
+      const { page, limit, skip, sortBy, sortOrder } =
+        paginationHelper.calculatePagination(options);
+
+      const where: any = {
+        isActive: true,
+        ...(query.categoryId && { categoryId: query.categoryId }),
+        ...((query.minPrice || query.maxPrice) && {
+          price: {
+            ...(query.minPrice && { gte: query.minPrice }),
+            ...(query.maxPrice && { lte: query.maxPrice }),
+          },
+        }),
+        ...(query.q && {
+          OR: [
+            { name: { contains: query.q, mode: "insensitive" } },
+            { description: { contains: query.q, mode: "insensitive" } },
+            { category: { name: { contains: query.q, mode: "insensitive" } } },
+            { store: { name: { contains: query.q, mode: "insensitive" } } },
+          ],
+        }),
+      };
+
+      const [data, total] = await Promise.all([
+        prisma.product.findMany({
+          where,
+          include: {
+            images: { take: 1 },
+            category: { select: { id: true, name: true } },
+            store: { select: { id: true, name: true } },
+          },
+          orderBy: { [sortBy]: sortOrder },
+          skip,
+          take: limit,
+        }),
+        prisma.product.count({ where }),
+      ]);
+
+      return {
+        meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        data,
+      };
+    }
+  );
+};
+
+
+// ─────────────────────────────────────────────
+// SEARCH SUGGESTIONS (cached)
+// ─────────────────────────────────────────────
+export const getSearchSuggestions = async (q: string) => {
+  if (!q || q.length < 2) return [];
+
+  return getOrSetCache(
+    CacheKeys.SEARCH_SUGGESTIONS(q),
+    300,
+    () =>
+      prisma.product.findMany({
+        where: {
+          isActive: true,
+          name: { contains: q, mode: "insensitive" },
+        },
+        select: { id: true, name: true, images: { take: 1 } },
+        take: 8,
+      })
+  );
+};
+
+
+// ─────────────────────────────────────────────
+// UPDATE PRODUCT (invalidate cache)
+// ─────────────────────────────────────────────
 export const updateProduct = async (
   productId: string,
   ownerId: string,
-  data: {
-    name?: string;
-    description?: string;
-    price?: number;
-    stock?: number;
-    categoryId?: string;
-    isActive?: boolean;
-  }
+  data: any
 ) => {
   const product = await prisma.product.findUnique({
     where: { id: productId },
     include: { store: true },
   });
+
   if (!product) throw new ApiError(404, "Product not found");
 
   if (product.store.ownerId !== ownerId) {
     throw new ApiError(403, "You can only update your own products");
   }
 
-  return prisma.product.update({
+  const updated = await prisma.product.update({
     where: { id: productId },
     data,
-    include: { images: true, variants: true },
   });
+
+  await invalidateCache(CacheKeys.SINGLE_PRODUCT(productId));
+  await invalidateCachePattern("products:*");
+
+  return updated;
 };
 
-// VENDOR/ADMIN — delete product
-export const deleteProduct = async (productId: string, ownerId: string, isAdmin: boolean) => {
+
+// ─────────────────────────────────────────────
+// DELETE PRODUCT (invalidate cache)
+// ─────────────────────────────────────────────
+export const deleteProduct = async (
+  productId: string,
+  ownerId: string,
+  isAdmin: boolean
+) => {
   const product = await prisma.product.findUnique({
     where: { id: productId },
     include: { store: true },
   });
+
   if (!product) throw new ApiError(404, "Product not found");
 
   if (!isAdmin && product.store.ownerId !== ownerId) {
@@ -217,10 +276,17 @@ export const deleteProduct = async (productId: string, ownerId: string, isAdmin:
   }
 
   await prisma.product.delete({ where: { id: productId } });
+
+  await invalidateCache(CacheKeys.SINGLE_PRODUCT(productId));
+  await invalidateCachePattern("products:*");
+
   return { message: "Product deleted successfully" };
 };
 
-// VENDOR — get all their products
+
+// ─────────────────────────────────────────────
+// VENDOR PRODUCTS (optional cache)
+// ─────────────────────────────────────────────
 export const getMyProducts = async (ownerId: string) => {
   const store = await prisma.store.findUnique({ where: { ownerId } });
   if (!store) throw new ApiError(404, "You don't have a store yet");
