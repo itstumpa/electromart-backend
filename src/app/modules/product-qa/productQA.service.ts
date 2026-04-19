@@ -1,8 +1,8 @@
 // src/app/modules/product-qa/productQA.service.ts
 import { prisma } from "../../../lib/prisma";
-import ApiError from "../../../utils/ApiError";
 import { createNotification } from "../notification/notification.service";
 import { sendEmail } from "../../../utils/sendEmail";
+import ApiError from "../../../utils/apiErrors";
 
 // CUSTOMER — ask question
 export const askQuestion = async (
