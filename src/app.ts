@@ -49,7 +49,7 @@ app.get("/", (_req: Request, res: Response) => {
   });
 });
 
-app.use(globalErrorHandler);
 app.use(notFound);
+app.use(globalErrorHandler);
 
 export default app;

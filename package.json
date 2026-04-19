@@ -39,6 +39,8 @@
     "@types/pg": "^8.16.0",
     "@types/socket.io": "^3.0.1",
     "@types/supertest": "^7.2.0",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
     "@types/uuid": "^10.0.0",
     "jest": "^30.3.0",
     "prisma": "^7.4.2",
@@ -83,6 +85,8 @@
     "socket.io-client": "^4.8.3",
     "sslcommerz-lts": "^1.2.0",
     "stripe": "^20.2.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "8.3.2",
     "zod": "^4.3.5"
   }

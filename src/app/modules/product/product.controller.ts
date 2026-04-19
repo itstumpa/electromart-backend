@@ -3,6 +3,9 @@ import { Request, Response } from "express";
 import catchAsync from "../../../utils/catchAsync";
 import sendResponse from "../../../utils/sendResponse";
 import * as ProductService from "./product.service";
+import { uploadToCloudinary, deleteFromCloudinary } from "../../../utils/uploadToCloudinary";
+import { prisma } from "../../../lib/prisma";
+import ApiError from "../../../utils/apiErrors";
 import { IOptions } from "../../shared/paginationHelper";
 
 export const searchProducts = catchAsync(async (req: Request, res: Response) => {
@@ -60,4 +63,68 @@ export const deleteProduct = catchAsync(async (req: Request, res: Response) => {
 export const getMyProducts = catchAsync(async (req: Request, res: Response) => {
   const products = await ProductService.getMyProducts(req.user!.id);
   sendResponse(res, { statusCode: 200, success: true, message: "Your products fetched", data: products });
+});
+
+
+
+export const uploadProductImages = catchAsync(async (req: Request, res: Response) => {
+  const files = req.files as Express.Multer.File[];
+  if (!files || files.length === 0) throw new ApiError(400, "No images provided");
+
+  // verify product belongs to this vendor
+  const product = await prisma.product.findUnique({
+    where: { id: req.params.id as string },
+    include: { store: true },
+  });
+  if (!product) throw new ApiError(404, "Product not found");
+  if (product.store.ownerId !== req.user!.id) {
+    throw new ApiError(403, "You can only upload images to your own products");
+  }
+
+  // upload all files to cloudinary in parallel
+  const uploads = await Promise.all(
+    files.map((file) =>
+      uploadToCloudinary(file.buffer, `electromart/products`)
+    )
+  );
+
+  // save image records to DB
+  const images = await prisma.$transaction(
+    uploads.map((result) =>
+      prisma.productImage.create({
+        data: {
+          url: result.secure_url,
+          publicId: result.public_id,  // save for deletion later
+          productId: product.id,
+        },
+      })
+    )
+  );
+
+  sendResponse(res, {
+    statusCode: 201,
+    success: true,
+    message: `${images.length} image(s) uploaded successfully`,
+    data: images,
+  });
+});
+
+export const deleteProductImage = catchAsync(async (req: Request, res: Response) => {
+  const image = await prisma.productImage.findUnique({
+    where: { id: req.params.imageId as string },
+    include: { product: { include: { store: true } } },
+  });
+
+  if (!image) throw new ApiError(404, "Image not found");
+  if (image.product.store.ownerId !== req.user!.id) {
+    throw new ApiError(403, "You can only delete images from your own products");
+  }
+
+  // delete from cloudinary then DB
+  if (image.publicId) {
+    await deleteFromCloudinary(image.publicId);
+  }
+  await prisma.productImage.delete({ where: { id: image.id } });
+
+  sendResponse(res, { statusCode: 200, success: true, message: "Image deleted", data: null });
 });

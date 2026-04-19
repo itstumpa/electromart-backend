@@ -88,6 +88,7 @@ model ProductImage {
   id        String  @id @default(cuid())
   url       String
   productId String
+  publicId  String?
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
@@ -213,3 +214,4 @@ model Review {
 
   @@unique([customerId, productId]) // one review per product per customer
 }
+

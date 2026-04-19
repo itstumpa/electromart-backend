@@ -9,6 +9,7 @@ import { cartRoute } from "../modules/cart/cart.routes";
 import { notificationRoute } from "../modules/notification/notification.routes";
 import { vendorAnalyticsRoute } from "../modules/vendor-analytics/vendorAnalytics.routes";
 import { returnRoute } from "../modules/return/return.routes";
+import { reviewRoute } from "../review/review.routes";
 //import { authenticate, authorize } from "../middlewares/auth";
 
 const router = Router();
@@ -24,6 +25,7 @@ router.use("/cart", cartRoute);
 router.use("/orders", orderRoute);
 router.use("/notifications", notificationRoute);
 router.use("/returns", returnRoute);
+router.use("/reviews", reviewRoute);
 
 
 
