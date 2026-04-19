@@ -4,6 +4,7 @@ import { prisma } from "../../../lib/prisma";
 import { sendNotificationToUser } from "../../../socket/socket";
 import ApiError from "../../../utils/apiErrors";
 import { sendEmail } from "../../../utils/sendEmail";
+import { sendPushToUser } from "../../../utils/sendPushNotification";
 
 
 interface CreateNotificationInput {
@@ -32,6 +33,14 @@ export const createNotification = async (data: CreateNotificationInput) => {
     message: data.message,
     type: data.type,
   });
+
+   // push notification (browser even when closed)
+  await sendPushToUser(data.userId, {
+    title: data.title,
+    message: data.message,
+    type: data.type,
+  }).catch(() => {}); // silent fail — push is best effort
+
 
   return notification;
 };
