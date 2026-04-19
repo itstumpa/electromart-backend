@@ -102,6 +102,34 @@ model ProductVariant {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum PaymentGateway {
+  SSLCOMMERZ
+  STRIPE
+}
+
+model Payment {
+  id              String          @id @default(cuid())
+  orderId         String          @unique
+  order           Order           @relation(fields: [orderId], references: [id])
+  gateway         PaymentGateway
+  status          PaymentStatus   @default(PENDING)
+  amount          Decimal
+  currency        String          @default("BDT")
+  transactionId   String?         // gateway transaction ID
+  sessionId       String?         // stripe session ID / sslcommerz session
+  gatewayResponse Json?           // raw response stored for debugging
+  refundId        String?         // gateway refund ID
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
 enum OrderStatus {
   PENDING
   PROCESSING
@@ -120,6 +148,8 @@ model Order {
   couponId  String?
   coupon    Coupon?  @relation(fields: [couponId], references: [id])
   discount  Decimal  @default(0)
+  payment   Payment?
+  
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 }
