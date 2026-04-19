@@ -13,6 +13,7 @@ import http from "http";
 import { initSocket } from "./socket/socket";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./app/config/swagger";
+import { globalLimiter } from "./app/middlewares/rateLimiter";
 
 
 const app: Application = express();
@@ -34,7 +35,7 @@ app.use(passport.initialize());
 // Gzip compression
 app.use(compression());
 // Redis Rate limit 
-// app.use(rateLimiter());
+app.use(globalLimiter);
 
 const httpServer = http.createServer(app);
 initSocket(httpServer);

@@ -9,17 +9,18 @@ import {
   signinSchema,
   signupSchema,
 } from "./auth.validation";
+import { authLimiter } from "../../middlewares/rateLimiter";
 
 const router = Router();
 
 // ── Public ─────────────────────────────────────────────────────────────────
-router.post("/signup", validate(signupSchema), authController.signup);
+router.post("/signup", authLimiter,  validate(signupSchema), authController.signup);
 router.get("/verify-email", authController.verifyEmail);
 router.post("/resend-verification", authController.resendEmailVerification);
-router.post("/signin", validate(signinSchema), authController.signin);
+router.post("/signin", authLimiter, validate(signinSchema), authController.signin);
 router.post("/refresh-token", authController.refreshToken);
 router.post(
-  "/forgot-password",
+  "/forgot-password", authLimiter,
   validate(forgotPasswordSchema),
   authController.requestPasswordReset,
 );

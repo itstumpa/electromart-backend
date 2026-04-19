@@ -7,13 +7,14 @@ import { validate } from "../../middlewares/validate";
 import { createProductSchema, updateProductSchema } from "./product.validation";
 import { upload } from "../../middlewares/upload";
 import * as ProductImageController from "./product.controller";
+import { searchLimiter } from "../../middlewares/rateLimiter";
 
 
 const router = Router();
 
 // PUBLIC
 router.get("/", ProductController.getAllProducts);
-router.get("/search", ProductController.searchProducts);
+router.get("/search", searchLimiter, ProductController.searchProducts);
 router.get("/search/suggestions", ProductController.getSearchSuggestions);
 router.get("/:id", ProductController.getProductById);
 
