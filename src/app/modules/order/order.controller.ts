@@ -6,7 +6,7 @@ import * as OrderService from "./order.service";
 import { OrderStatus } from "@prisma/client";
 
 export const placeOrder = catchAsync(async (req: Request, res: Response) => {
-  const order = await OrderService.placeOrder(req.user!.id);
+  const order = await OrderService.placeOrder(req.user!.id, req.body.couponCode);
   sendResponse(res, { statusCode: 201, success: true, message: "Order placed successfully", data: order });
 });
 

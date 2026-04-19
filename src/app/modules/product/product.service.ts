@@ -1,6 +1,73 @@
 // src/app/modules/product/product.service.ts
 import { prisma } from "../../../lib/prisma";
 import ApiError from "../../../utils/apiErrors";
+import { IOptions, paginationHelper } from "../../shared/paginationHelper";
+
+
+// FULL-TEXT SEARCH
+export const searchProducts = async (
+  query: { q?: string; categoryId?: string; minPrice?: number; maxPrice?: number },
+  options: IOptions
+) => {
+  const { page, limit, skip, sortBy, sortOrder } =
+    paginationHelper.calculatePagination(options);
+
+  const where: any = {
+    isActive: true,
+    ...(query.categoryId && { categoryId: query.categoryId }),
+    ...((query.minPrice || query.maxPrice) && {
+      price: {
+        ...(query.minPrice && { gte: query.minPrice }),
+        ...(query.maxPrice && { lte: query.maxPrice }),
+      },
+    }),
+    ...(query.q && {
+      OR: [
+        { name: { contains: query.q, mode: "insensitive" } },
+        { description: { contains: query.q, mode: "insensitive" } },
+        { category: { name: { contains: query.q, mode: "insensitive" } } },
+        { store: { name: { contains: query.q, mode: "insensitive" } } },
+      ],
+    }),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      include: {
+        images: { take: 1 },
+        category: { select: { id: true, name: true } },
+        store: { select: { id: true, name: true } },
+        _count: { select: { reviews: true } },
+      },
+      orderBy: { [sortBy]: sortOrder },
+      skip,
+      take: limit,
+    }),
+    prisma.product.count({ where }),
+  ]);
+
+  return {
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    data,
+  };
+};
+
+// AUTOCOMPLETE — returns just names, fast
+export const getSearchSuggestions = async (q: string) => {
+  if (!q || q.length < 2) return [];
+
+  const products = await prisma.product.findMany({
+    where: {
+      isActive: true,
+      name: { contains: q, mode: "insensitive" },
+    },
+    select: { id: true, name: true, images: { take: 1 } },
+    take: 8, // max 8 suggestions
+  });
+
+  return products;
+};
 
 // VENDOR — create product in their store
 export const createProduct = async (

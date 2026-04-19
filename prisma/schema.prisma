@@ -34,6 +34,7 @@ model User {
   orders              Order[]
   notifications  Notification[]
   returnRequests ReturnRequest[]
+  reviews Review[]
   cart Cart?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
@@ -78,6 +79,7 @@ model Product {
 
   orderItems OrderItem[]
   cartItems CartItem[]
+  reviews Review[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 }
@@ -196,4 +198,18 @@ model ReturnRequest {
   vendorNote  String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rating     Int      // 1-5
+  comment    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([customerId, productId]) // one review per product per customer
 }

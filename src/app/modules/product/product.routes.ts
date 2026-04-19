@@ -10,6 +10,8 @@ const router = Router();
 
 // PUBLIC
 router.get("/", ProductController.getAllProducts);
+router.get("/search", ProductController.searchProducts);
+router.get("/search/suggestions", ProductController.getSearchSuggestions);
 router.get("/:id", ProductController.getProductById);
 
 // VENDOR only

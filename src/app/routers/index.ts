@@ -7,6 +7,8 @@ import { categoryRoute } from "../modules/category/category.routes";
 import { orderRoute } from "../modules/order/order.routes";
 import { cartRoute } from "../modules/cart/cart.routes";
 import { notificationRoute } from "../modules/notification/notification.routes";
+import { vendorAnalyticsRoute } from "../modules/vendor-analytics/vendorAnalytics.routes";
+import { returnRoute } from "../modules/return/return.routes";
 //import { authenticate, authorize } from "../middlewares/auth";
 
 const router = Router();
@@ -21,5 +23,10 @@ router.use("/category", categoryRoute);
 router.use("/cart", cartRoute);
 router.use("/orders", orderRoute);
 router.use("/notifications", notificationRoute);
+router.use("/returns", returnRoute);
+
+
+
+router.use("/vendor/analytics", vendorAnalyticsRoute);
 
 export default router;

@@ -9,9 +9,10 @@ import {
   newOrderVendorEmail,
   orderStatusUpdateEmail,
 } from "../../../utils/emailTemplates";
+import { validateCoupon } from "../coupon/coupon.service";
 
 
-export const placeOrder = async (customerId: string) => {
+export const placeOrder = async (customerId: string, couponCode?: string) => {
   // get cart from DB
   const cart = await prisma.cart.findUnique({
     where: { userId: customerId },
@@ -44,12 +45,26 @@ export const placeOrder = async (customerId: string) => {
     0,
   );
 
+    let discount = 0;
+  let couponId: string | undefined;
+
+  // apply coupon if provided
+  if (couponCode) {
+    const coupon = await validateCoupon(couponCode);
+    discount = (Number(totalAmount) * coupon.discountPercent) / 100;
+    couponId = coupon.id;
+  }
+
+  const finalAmount = Number(totalAmount) - discount;
+  
   // create order with items
   const order = await prisma.$transaction(async (tx) => {
     const newOrder = await tx.order.create({
       data: {
         customerId,
-        totalAmount,
+        totalAmount: finalAmount,
+        discount,
+        couponId,    
         items: {
           create: cart.items.map((item) => ({
             productId: item.productId,
@@ -82,6 +97,8 @@ export const placeOrder = async (customerId: string) => {
 
     return newOrder;
   });
+
+
     // get customer info for email
   const customer = await prisma.user.findUnique({
     where: { id: customerId },
