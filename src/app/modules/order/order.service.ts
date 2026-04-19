@@ -10,6 +10,7 @@ import {
   orderStatusUpdateEmail,
 } from "../../../utils/emailTemplates";
 import { validateCoupon } from "../coupon/coupon.service";
+import { IOptions, paginationHelper } from "../../shared/paginationHelper";
 
 
 export const placeOrder = async (customerId: string, couponCode?: string) => {
@@ -171,19 +172,34 @@ export const placeOrder = async (customerId: string, couponCode?: string) => {
 };
 
 // CUSTOMER — get their own orders
-export const getMyOrders = async (customerId: string) => {
-  return prisma.order.findMany({
-    where: { customerId },
-    include: {
-      items: {
-        include: {
-          product: { select: { id: true, name: true, images: { take: 1 } } },
-          store: { select: { id: true, name: true } },
+export const getMyOrders = async (customerId: string, options: IOptions) => {
+  const { page, limit, skip, sortBy, sortOrder } =
+    paginationHelper.calculatePagination(options);
+
+  const where = { customerId };
+
+  const [data, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: {
+        items: {
+          include: {
+            product: { select: { id: true, name: true, images: { take: 1 } } },
+            store: { select: { id: true, name: true } },
+          },
         },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { [sortBy]: sortOrder },
+      skip,
+      take: limit,
+    }),
+    prisma.order.count({ where }),
+  ]);
+
+  return {
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    data,
+  };
 };
 
 // CUSTOMER — get single order (own only)
@@ -343,17 +359,46 @@ export const updateOrderItemStatus = async (
 };
 
 // ADMIN — get all orders
-export const getAllOrders = async () => {
-  return prisma.order.findMany({
-    include: {
-      customer: { select: { id: true, name: true, email: true } },
-      items: {
-        include: {
-          store: { select: { id: true, name: true } },
-          product: { select: { id: true, name: true } },
+export const getAllOrders = async (
+  query: { status?: string; search?: string },
+  options: IOptions
+) => {
+  const { page, limit, skip, sortBy, sortOrder } =
+    paginationHelper.calculatePagination(options);
+
+  const where = {
+    ...(query.status && { status: query.status as any }),
+    ...(query.search && {
+      customer: {
+        OR: [
+          { name: { contains: query.search, mode: "insensitive" as const } },
+          { email: { contains: query.search, mode: "insensitive" as const } },
+        ],
+      },
+    }),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: {
+        customer: { select: { id: true, name: true, email: true } },
+        items: {
+          include: {
+            store: { select: { id: true, name: true } },
+            product: { select: { id: true, name: true } },
+          },
         },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { [sortBy]: sortOrder },
+      skip,
+      take: limit,
+    }),
+    prisma.order.count({ where }),
+  ]);
+
+  return {
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    data,
+  };
 };

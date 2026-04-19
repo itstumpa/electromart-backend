@@ -4,6 +4,7 @@ import catchAsync from "../../../utils/catchAsync";
 import sendResponse from "../../../utils/sendResponse";
 import * as OrderService from "./order.service";
 import { OrderStatus } from "@prisma/client";
+import { IOptions } from "../../shared/paginationHelper";
 
 export const placeOrder = catchAsync(async (req: Request, res: Response) => {
   const order = await OrderService.placeOrder(req.user!.id, req.body.couponCode);
@@ -11,8 +12,12 @@ export const placeOrder = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getMyOrders = catchAsync(async (req: Request, res: Response) => {
-  const orders = await OrderService.getMyOrders(req.user!.id);
-  sendResponse(res, { statusCode: 200, success: true, message: "Orders fetched", data: orders });
+  const { page, limit, sortBy, sortOrder } = req.query;
+  const result = await OrderService.getMyOrders(
+    req.user!.id,
+    { page, limit, sortBy, sortOrder } as IOptions
+  );
+  sendResponse(res, { statusCode: 200, success: true, message: "Orders fetched", meta: result.meta, data: result.data });
 });
 
 export const getOrderById = catchAsync(async (req: Request, res: Response) => {
@@ -41,6 +46,10 @@ export const updateOrderItemStatus = catchAsync(async (req: Request, res: Respon
 });
 
 export const getAllOrders = catchAsync(async (req: Request, res: Response) => {
-  const orders = await OrderService.getAllOrders();
-  sendResponse(res, { statusCode: 200, success: true, message: "All orders fetched", data: orders });
+  const { page, limit, sortBy, sortOrder, status, search } = req.query;
+  const result = await OrderService.getAllOrders(
+    { status: status as string, search: search as string },
+    { page, limit, sortBy, sortOrder } as IOptions
+  );
+  sendResponse(res, { statusCode: 200, success: true, message: "All orders fetched", meta: result.meta, data: result.data });
 });
