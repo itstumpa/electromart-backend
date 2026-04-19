@@ -1,8 +1,8 @@
 // src/app/modules/stock-alert/stockAlert.service.ts
 import { prisma } from "../../../lib/prisma";
-import ApiError from "../../../utils/ApiError";
 import { createNotification } from "../notification/notification.service";
 import { sendEmail } from "../../../utils/sendEmail";
+import ApiError from "../../../utils/apiErrors";
 
 // CUSTOMER — subscribe to stock alert
 export const subscribeToStockAlert = async (

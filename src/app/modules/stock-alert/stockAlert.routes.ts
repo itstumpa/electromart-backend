@@ -1,7 +1,8 @@
 import { Router } from "express";
 import * as StockAlertController from "./stockAlert.controller";
-import { authenticate } from "../../../middlewares/authenticate";
-import { authorize } from "../../../middlewares/authorize";
+import { authorize } from "../../middlewares/authorize";
+import { authenticate } from "../../middlewares/authenticate";
+
 
 const router = Router();
 router.use(authenticate, authorize("CUSTOMER"));
