@@ -1,9 +1,15 @@
 // src/app/modules/admin/admin.service.ts
 import { paginationHelper, IOptions } from "../../shared/paginationHelper";
 import { prisma } from "../../../lib/prisma";
+import { getOrSetCache } from "../../../utils/cache";
+import { CacheKeys } from "../../../utils/cacheKeys";
 
 // ── OVERVIEW ──────────────────────────────────────────────────────────────────
 export const getDashboardOverview = async () => {
+   return getOrSetCache(
+    CacheKeys.ADMIN_DASHBOARD,
+    300, // 5 min cache
+    async () => {
   const [
     totalRevenue,
     totalOrders,
@@ -81,29 +87,39 @@ export const getDashboardOverview = async () => {
     })
   );
 
-  return {
-    revenue: {
-      total: Number(totalRevenue._sum.totalAmount || 0),
-    },
-    orders: {
-      total: totalOrders,
-      byStatus: ordersByStatus.reduce((acc, curr) => {
-        acc[curr.status] = curr._count.status;
-        return acc;
-      }, {} as Record<string, number>),
-    },
-    users: {
-      total: totalUsers,
-      byRole: usersByRole.reduce((acc, curr) => {
-        acc[curr.role] = curr._count.role;
-        return acc;
-      }, {} as Record<string, number>),
-    },
-    products: { total: totalProducts },
-    stores: { total: totalStores },
-    recentOrders,
-    topProducts: topProductDetails,
-  };
+ // 🔥 format status data
+      const formattedOrdersByStatus = ordersByStatus.reduce(
+        (acc: any, item) => {
+          acc[item.status] = item._count.status;
+          return acc;
+        },
+        {}
+      );
+
+      // 🔥 format roles
+      const formattedUsersByRole = usersByRole.reduce(
+        (acc: any, item) => {
+          acc[item.role] = item._count.role;
+          return acc;
+        },
+        {}
+      );
+
+      return {
+        totalRevenue: totalRevenue._sum.totalAmount || 0,
+        totalOrders,
+        totalUsers,
+        totalProducts,
+        totalStores,
+
+        ordersByStatus: formattedOrdersByStatus,
+        usersByRole: formattedUsersByRole,
+
+        recentOrders,
+        topProducts,
+      };
+    }
+  );
 };
 
 // ── REVENUE BY STORE ──────────────────────────────────────────────────────────
@@ -217,43 +233,59 @@ export const getVendors = async (
 
 // ── TOP SELLING PRODUCTS ──────────────────────────────────────────────────────
 export const getTopSellingProducts = async (options: IOptions) => {
-  const { page, limit, skip } = paginationHelper.calculatePagination(options);
+  const { page, limit, skip } =
+    paginationHelper.calculatePagination(options);
 
-  const grouped = await prisma.orderItem.groupBy({
-    by: ["productId"],
-    _sum: { quantity: true },
-    _count: { id: true },
-    orderBy: { _sum: { quantity: "desc" } },
-    skip,
-    take: limit,
-  });
+  // IMPORTANT: make cache key dynamic per page
+  const cacheKey = `${CacheKeys.ADMIN_TOP_PRODUCTS}:${page}:${limit}`;
 
-  const total = await prisma.product.count();
-
-  const data = await Promise.all(
-    grouped.map(async (item) => {
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId },
-        select: {
-          id: true,
-          name: true,
-          price: true,
-          stock: true,
-          images: { take: 1 },
-          category: { select: { id: true, name: true } },
-          store: { select: { id: true, name: true } },
-        },
+  return getOrSetCache(
+    cacheKey,
+    300,
+    async () => {
+      const grouped = await prisma.orderItem.groupBy({
+        by: ["productId"],
+        _sum: { quantity: true },
+        _count: { id: true },
+        orderBy: { _sum: { quantity: "desc" } },
+        skip,
+        take: limit,
       });
-      return {
-        ...product,
-        totalSold: item._sum.quantity,
-        totalOrders: item._count.id,
-      };
-    })
-  );
 
-  return {
-    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    data,
-  };
+      const total = await prisma.product.count();
+
+      const data = await Promise.all(
+        grouped.map(async (item) => {
+          const product = await prisma.product.findUnique({
+            where: { id: item.productId },
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              stock: true,
+              images: { take: 1 },
+              category: { select: { id: true, name: true } },
+              store: { select: { id: true, name: true } },
+            },
+          });
+
+          return {
+            ...product,
+            totalSold: item._sum.quantity,
+            totalOrders: item._count.id,
+          };
+        })
+      );
+
+      return {
+        meta: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+        data,
+      };
+    }
+  );
 };
