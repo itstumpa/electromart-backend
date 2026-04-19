@@ -1,7 +1,7 @@
 // src/app/modules/payment/payment.service.ts
 import Stripe from "stripe";
 import { prisma } from "../../../lib/prisma";
-import ApiError from "../../../utils/ApiError";
+
 import {
   initiateSSLCommerzPayment,
   validateSSLCommerzPayment,
@@ -9,6 +9,7 @@ import {
 } from "./sslcommerz.service";
 import { createNotification } from "../notification/notification.service";
 import { sendEmail } from "../../../utils/sendEmail";
+import ApiError from "../../../utils/apiErrors";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 

@@ -60,7 +60,7 @@ export const stripeWebhook = catchAsync(async (req: Request, res: Response) => {
 // ADMIN — refund
 export const refundPayment = catchAsync(async (req: Request, res: Response) => {
   const result = await PaymentService.refundPayment(
-    req.params.orderId,
+    req.params.orderId as string,
     req.body.reason
   );
   sendResponse(res, {
@@ -75,7 +75,7 @@ export const refundPayment = catchAsync(async (req: Request, res: Response) => {
 export const getPaymentByOrderId = catchAsync(async (req: Request, res: Response) => {
   const isAdmin = req.user!.role === "ADMIN";
   const payment = await PaymentService.getPaymentByOrderId(
-    req.params.orderId,
+    req.params.orderId as string,
     req.user!.id,
     isAdmin
   );

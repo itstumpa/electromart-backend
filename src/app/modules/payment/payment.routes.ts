@@ -2,8 +2,9 @@
 import { Router } from "express";
 import express from "express";
 import * as PaymentController from "./payment.controller";
-import { authenticate } from "../../../middlewares/authenticate";
-import { authorize } from "../../../middlewares/authorize";
+import { authenticate } from "../../middlewares/authenticate";
+import { authorize } from "../../middlewares/authorize";
+
 
 const router = Router();
 
