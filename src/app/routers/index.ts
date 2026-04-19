@@ -10,6 +10,8 @@ import { notificationRoute } from "../modules/notification/notification.routes";
 import { vendorAnalyticsRoute } from "../modules/vendor-analytics/vendorAnalytics.routes";
 import { returnRoute } from "../modules/return/return.routes";
 import { reviewRoute } from "../review/review.routes";
+import { adminRoute } from "../modules/admin/admin.routes";
+import { couponRoute } from "../modules/coupon/coupon.routes";
 //import { authenticate, authorize } from "../middlewares/auth";
 
 const router = Router();
@@ -26,9 +28,11 @@ router.use("/orders", orderRoute);
 router.use("/notifications", notificationRoute);
 router.use("/returns", returnRoute);
 router.use("/reviews", reviewRoute);
+router.use("/coupons", couponRoute);
 
 
 
+router.use("/admin", adminRoute);
 router.use("/vendor/analytics", vendorAnalyticsRoute);
 
 export default router;
