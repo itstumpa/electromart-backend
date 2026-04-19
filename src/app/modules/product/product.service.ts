@@ -105,37 +105,58 @@ export const createProduct = async (
 };
 
 // PUBLIC — get all active products (with filters)
-export const getAllProducts = async (query: {
-  categoryId?: string;
-  storeId?: string;
-  search?: string;
-  minPrice?: number;
-  maxPrice?: number;
-}) => {
-  return prisma.product.findMany({
-    where: {
-      isActive: true,
-      ...(query.categoryId && { categoryId: query.categoryId }),
-      ...(query.storeId && { storeId: query.storeId }),
-      ...(query.search && {
-        name: { contains: query.search, mode: "insensitive" },
-      }),
-      ...(query.minPrice || query.maxPrice
-        ? {
-            price: {
-              ...(query.minPrice && { gte: query.minPrice }),
-              ...(query.maxPrice && { lte: query.maxPrice }),
-            },
-          }
-        : {}),
+export const getAllProducts = async (
+  query: {
+    categoryId?: string;
+    storeId?: string;
+    search?: string;
+    minPrice?: number;
+    maxPrice?: number;
+  },
+  options: IOptions
+) => {
+  const { page, limit, skip, sortBy, sortOrder } =
+    paginationHelper.calculatePagination(options);
+
+  const where = {
+    isActive: true,
+    ...(query.categoryId && { categoryId: query.categoryId }),
+    ...(query.storeId && { storeId: query.storeId }),
+    ...(query.search && {
+      name: { contains: query.search, mode: "insensitive" as const },
+    }),
+    ...((query.minPrice || query.maxPrice) && {
+      price: {
+        ...(query.minPrice && { gte: query.minPrice }),
+        ...(query.maxPrice && { lte: query.maxPrice }),
+      },
+    }),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      include: {
+        images: true,
+        category: true,
+        store: { select: { id: true, name: true, slug: true } },
+      },
+      orderBy: { [sortBy]: sortOrder },
+      skip,
+      take: limit,
+    }),
+    prisma.product.count({ where }),
+  ]);
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
     },
-    include: {
-      images: true,
-      category: true,
-      store: { select: { id: true, name: true, slug: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+    data,
+  };
 };
 
 // PUBLIC — get single product

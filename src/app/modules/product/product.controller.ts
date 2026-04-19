@@ -33,15 +33,26 @@ export const createProduct = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getAllProducts = catchAsync(async (req: Request, res: Response) => {
-  const { categoryId, storeId, search, minPrice, maxPrice } = req.query;
-  const products = await ProductService.getAllProducts({
-    categoryId: categoryId as string,
-    storeId: storeId as string,
-    search: search as string,
-    minPrice: minPrice ? Number(minPrice) : undefined,
-    maxPrice: maxPrice ? Number(maxPrice) : undefined,
+  const { categoryId, storeId, search, minPrice, maxPrice, page, limit, sortBy, sortOrder } = req.query;
+
+  const result = await ProductService.getAllProducts(
+    {
+      categoryId: categoryId as string,
+      storeId: storeId as string,
+      search: search as string,
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+    },
+    { page, limit, sortBy, sortOrder } as IOptions
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Products fetched successfully",
+    meta: result.meta,
+    data: result.data,
   });
-  sendResponse(res, { statusCode: 200, success: true, message: "Products fetched successfully", data: products });
 });
 
 export const getProductById = catchAsync(async (req: Request, res: Response) => {
