@@ -81,18 +81,29 @@ export const getProductsByTag = async (slug: string) => {
     where: { slug },
     include: {
       products: {
+        where: {
+          product: {
+            isActive: true,
+          },
+        },
         include: {
           product: {
-            where: { isActive: true },
             include: {
               images: { take: 1 },
-              store: { select: { id: true, name: true } },
+              store: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
         },
       },
     },
   });
+
   if (!tag) throw new ApiError(404, "Tag not found");
+
   return tag;
 };
