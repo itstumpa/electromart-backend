@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
 import * as ReviewService from "./review.service";
+import { IOptions } from "../shared/paginationHelper";
 
 export const createReview = catchAsync(async (req: Request, res: Response) => {
   const review = await ReviewService.createReview(
@@ -14,8 +15,12 @@ export const createReview = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getProductReviews = catchAsync(async (req: Request, res: Response) => {
-  const result = await ReviewService.getProductReviews(req.params.productId as string);
-  sendResponse(res, { statusCode: 200, success: true, message: "Reviews fetched", data: result });
+  const { page, limit, sortBy, sortOrder } = req.query;
+  const result = await ReviewService.getProductReviews(
+    req.params.productId as string,
+    { page, limit, sortBy, sortOrder } as IOptions
+  );
+  sendResponse(res, { statusCode: 200, success: true, message: "Reviews fetched", meta: result.meta, data: result.data });
 });
 
 export const getMyReviews = catchAsync(async (req: Request, res: Response) => {

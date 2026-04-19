@@ -1,6 +1,7 @@
 // src/app/modules/review/review.service.ts
 import { prisma } from "../../lib/prisma";
 import ApiError from "../../utils/apiErrors";
+import { IOptions, paginationHelper } from "../shared/paginationHelper";
 
 // CUSTOMER — create review (must have delivered order item for this product)
 export const createReview = async (
@@ -52,28 +53,41 @@ export const createReview = async (
 };
 
 // PUBLIC — get all reviews for a product
-export const getProductReviews = async (productId: string) => {
+export const getProductReviews = async (
+  productId: string,
+  options: IOptions
+) => {
+  const { page, limit, skip, sortBy, sortOrder } =
+    paginationHelper.calculatePagination(options);
+
   const product = await prisma.product.findUnique({ where: { id: productId } });
   if (!product) throw new ApiError(404, "Product not found");
 
-  const reviews = await prisma.review.findMany({
-    where: { productId },
-    include: {
-      customer: { select: { id: true, name: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const where = { productId };
 
-  // calculate average rating
+  const [reviews, total] = await Promise.all([
+    prisma.review.findMany({
+      where,
+      include: { customer: { select: { id: true, name: true } } },
+      orderBy: { [sortBy]: sortOrder },
+      skip,
+      take: limit,
+    }),
+    prisma.review.count({ where }),
+  ]);
+
   const avgRating =
     reviews.length > 0
       ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
       : 0;
 
   return {
-    reviews,
-    totalReviews: reviews.length,
-    averageRating: Number(avgRating.toFixed(1)),
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    data: {
+      reviews,
+      averageRating: Number(avgRating.toFixed(1)),
+      totalReviews: total,
+    },
   };
 };
 
