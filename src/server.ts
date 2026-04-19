@@ -5,6 +5,9 @@ import { bootstrapApp } from "./app/bootstrap";
 import app from "./app";
 import { prisma } from "./lib/prisma";
 import config from "./app/config";
+import { startLeaderboardJob } from "./jobs/leaderboard.job";
+import { startWeeklyDigestJob } from "./jobs/weeklyDigest.job";
+
 
 // Start server
 async function startServer() {
@@ -16,7 +19,8 @@ async function startServer() {
 
     server.listen(port, () => {
       console.log(`✅ Server is running on http://localhost:${port} `);
-
+  startLeaderboardJob();
+  startWeeklyDigestJob();
     });
     
     server.setTimeout(120000);
