@@ -11,6 +11,8 @@ import cookieParser from "cookie-parser";
 import compression from "compression";
 import http from "http";
 import { initSocket } from "./socket/socket";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./app/config/swagger";
 
 
 const app: Application = express();
@@ -48,6 +50,18 @@ app.get("/", (_req: Request, res: Response) => {
     timeStamp: new Date().toISOString(),
   });
 });
+
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: "ElectroMart API Docs",
+    customCss: ".swagger-ui .topbar { background-color: #1a1a2e; }",
+    swaggerOptions: {
+      persistAuthorization: true, // keeps JWT saved on page refresh
+    },
+  })
+);
 
 app.use(notFound);
 app.use(globalErrorHandler);
