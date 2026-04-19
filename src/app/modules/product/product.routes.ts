@@ -17,6 +17,8 @@ router.get("/", ProductController.getAllProducts);
 router.get("/search", searchLimiter, ProductController.searchProducts);
 router.get("/search/suggestions", ProductController.getSearchSuggestions);
 router.get("/:id", ProductController.getProductById);
+router.get("/:id", ProductController.getProductById);
+router.get("/recently-viewed", authenticate, ProductController.getRecentlyViewedProducts);
 
 // VENDOR only
 router.post("/", authenticate, authorize("VENDOR"), validate(createProductSchema), ProductController.createProduct);

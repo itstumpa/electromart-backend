@@ -11,6 +11,7 @@ import {
 } from "../../../utils/emailTemplates";
 import { validateCoupon } from "../coupon/coupon.service";
 import { IOptions, paginationHelper } from "../../shared/paginationHelper";
+import { addStatusHistory } from "../order-tracking/orderTracking.service";
 
 
 export const placeOrder = async (customerId: string, couponCode?: string) => {
@@ -92,7 +93,7 @@ export const placeOrder = async (customerId: string, couponCode?: string) => {
         data: { stock: { decrement: item.quantity } },
       });
     }
-
+await addStatusHistory(order.id, "PENDING", "Order placed successfully");
     // clear DB cart after order
     await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
@@ -254,7 +255,7 @@ export const cancelOrder = async (orderId: string, customerId: string) => {
       where: { orderId },
       data: { status: "CANCELLED" },
     });
-
+    
     for (const item of items) {
       await tx.product.update({
         where: { id: item.productId },
@@ -262,6 +263,7 @@ export const cancelOrder = async (orderId: string, customerId: string) => {
       });
     }
   });
+  await addStatusHistory(orderId, "CANCELLED", "Cancelled by customer");
 
   return { message: "Order cancelled successfully" };
 };
@@ -289,18 +291,21 @@ export const getVendorOrders = async (ownerId: string) => {
   });
 };
 
-// VENDOR — update their own order item status
 export const updateOrderItemStatus = async (
   orderItemId: string,
   ownerId: string,
-  status: OrderStatus,
+  status: OrderStatus
 ) => {
-  const store = await prisma.store.findUnique({ where: { ownerId } });
+  const store = await prisma.store.findUnique({
+    where: { ownerId },
+  });
+
   if (!store) throw new ApiError(404, "Store not found");
 
   const item = await prisma.orderItem.findUnique({
     where: { id: orderItemId },
   });
+
   if (!item) throw new ApiError(404, "Order item not found");
 
   // make sure this item belongs to vendor's store
@@ -317,10 +322,18 @@ export const updateOrderItemStatus = async (
     data: { status },
   });
 
-  // get order + customer info
+  // notification + email
   const orderWithCustomer = await prisma.order.findUnique({
     where: { id: item.orderId },
-    include: { customer: { select: { id: true, name: true, email: true } } },
+    include: {
+      customer: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
   });
 
   if (orderWithCustomer) {
@@ -336,23 +349,40 @@ export const updateOrderItemStatus = async (
       item.orderId,
       status
     );
+
     await sendEmail({
       to: orderWithCustomer.customer.email,
       ...statusEmail,
     });
   }
 
-  // if all items in order are DELIVERED, mark whole order as DELIVERED
+  // add item-level status history
+  await addStatusHistory(
+    item.orderId,
+    status,
+    `Item "${item.productId}" marked as ${status} by vendor`
+  );
+
+  // refetch all items AFTER update
   const allItems = await prisma.orderItem.findMany({
     where: { orderId: item.orderId },
   });
-  const allDelivered = allItems.every((i) => i.status === "DELIVERED");
+
+  const allDelivered = allItems.every(
+    (orderItem) => orderItem.status === "DELIVERED"
+  );
 
   if (allDelivered) {
     await prisma.order.update({
       where: { id: item.orderId },
       data: { status: "DELIVERED" },
     });
+
+    await addStatusHistory(
+      item.orderId,
+      "DELIVERED",
+      "All items delivered"
+    );
   }
 
   return updated;

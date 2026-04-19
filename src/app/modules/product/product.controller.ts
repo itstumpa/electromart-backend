@@ -7,6 +7,7 @@ import { uploadToCloudinary, deleteFromCloudinary } from "../../../utils/uploadT
 import { prisma } from "../../../lib/prisma";
 import ApiError from "../../../utils/apiErrors";
 import { IOptions } from "../../shared/paginationHelper";
+import { addRecentlyViewed, getRecentlyViewed } from "../../../utils/recentlyViewed";
 
 export const searchProducts = catchAsync(async (req: Request, res: Response) => {
   const { q, categoryId, minPrice, maxPrice, page, limit, sortBy, sortOrder } = req.query;
@@ -57,6 +58,9 @@ export const getAllProducts = catchAsync(async (req: Request, res: Response) => 
 
 export const getProductById = catchAsync(async (req: Request, res: Response) => {
   const product = await ProductService.getProductById(req.params.id as string);
+    if (req.user?.id) {
+    await addRecentlyViewed(req.user.id, req.params.id as string).catch(() => {}); // silent fail
+  }
   sendResponse(res, { statusCode: 200, success: true, message: "Product fetched successfully", data: product });
 });
 
@@ -138,4 +142,9 @@ export const deleteProductImage = catchAsync(async (req: Request, res: Response)
   await prisma.productImage.delete({ where: { id: image.id } });
 
   sendResponse(res, { statusCode: 200, success: true, message: "Image deleted", data: null });
+});
+
+export const getRecentlyViewedProducts = catchAsync(async (req: Request, res: Response) => {
+  const data = await getRecentlyViewed(req.user!.id);
+  sendResponse(res, { statusCode: 200, success: true, message: "Recently viewed", data });
 });

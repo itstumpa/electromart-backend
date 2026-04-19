@@ -1,7 +1,7 @@
 import { prisma } from "../../../lib/prisma";
 import ApiError from "../../../utils/apiErrors";
 import { IOptions, paginationHelper } from "../../shared/paginationHelper";
-
+import { notifyStockAlert } from "../stock-alert/stockAlert.service";
 import {
   getOrSetCache,
   invalidateCache,
@@ -248,6 +248,15 @@ export const updateProduct = async (
     where: { id: productId },
     data,
   });
+
+  // notify only when stock was previously empty and now restocked
+  if (
+    typeof data.stock === "number" &&
+    product.stock <= 0 &&
+    data.stock > 0
+  ) {
+    await notifyStockAlert(productId);
+  }
 
   await invalidateCache(CacheKeys.SINGLE_PRODUCT(productId));
   await invalidateCachePattern("products:*");

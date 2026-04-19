@@ -13,6 +13,9 @@ import { reviewRoute } from "../review/review.routes";
 import { adminRoute } from "../modules/admin/admin.routes";
 import { couponRoute } from "../modules/coupon/coupon.routes";
 import { paymentRoute } from "../modules/payment/payment.routes";
+import { addressRoute } from "../address/address.routes";
+import { orderTrackingRoute } from "../modules/order-tracking/orderTracking.routes";
+import { tagRoute } from "../modules/tag/tag.routes";
 //import { authenticate, authorize } from "../middlewares/auth";
 
 const router = Router();
@@ -31,6 +34,9 @@ router.use("/returns", returnRoute);
 router.use("/reviews", reviewRoute);
 router.use("/coupons", couponRoute);
 router.use("/payments", paymentRoute);
+router.use("/addresses", addressRoute);
+router.use("/orderTracking", orderTrackingRoute);
+router.use("/tag", tagRoute);
 
 
 
