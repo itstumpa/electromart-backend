@@ -10,15 +10,12 @@ const generateSlug = (name: string) => {
   return name.toLowerCase().replace(/\s+/g, "-");
 };
 
-export const createSuperAdmin = async () => {
+export const createAdmin = async () => {
   try {
     console.log("\n🔍 Running bootstrap seed...\n");
 
-    // =========================
-    // 🟢 ADMIN
-    // =========================
-    const adminEmail = process.env.SUPER_ADMIN_EMAIL!;
-    const adminPassword = process.env.SUPER_ADMIN_PASSWORD!;
+    const adminEmail = process.env.ADMIN_EMAIL!;
+    const adminPassword = process.env.ADMIN_PASSWORD!;
 
     let admin = await prisma.user.findUnique({
       where: { email: adminEmail },
@@ -27,7 +24,7 @@ export const createSuperAdmin = async () => {
     if (!admin) {
       admin = await prisma.user.create({
         data: {
-          name: "Super Admin",
+          name: "Admin",
           email: adminEmail,
           password: await hashPassword(adminPassword),
           role: "ADMIN",
@@ -38,6 +35,39 @@ export const createSuperAdmin = async () => {
     } else {
       console.log("⚠️ Admin already exists");
     }
+  } catch (error) {
+    console.error("❌ Admin seed failed:", error);
+  }
+};
+
+// super admin created 
+
+export const createSuperAdmin = async () => {
+  try {
+    console.log("\n🔍 Running bootstrap seed...\n");
+
+    const superAdminEmail = process.env.SUPER_ADMIN_EMAIL!;
+    const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD!;
+
+    let superAdmin = await prisma.user.findUnique({
+      where: { email: superAdminEmail },
+    });
+
+    if (!superAdmin) {
+      superAdmin = await prisma.user.create({
+        data: {
+          name: "Super Admin",
+          email: superAdminEmail,
+          password: await hashPassword(superAdminPassword),
+          role: "SUPER_ADMIN",
+          isEmailVerified: true,
+        },
+      });
+      console.log("✅ Super Admin created");
+    } else {
+      console.log("⚠️ Super Admin already exists");
+    }
+
 
     // =========================
     // 🟢 VENDOR 1

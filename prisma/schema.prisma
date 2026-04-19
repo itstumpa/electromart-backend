@@ -6,6 +6,7 @@ datasource db {
   provider = "postgresql"
 }
 enum Role {
+  SUPER_ADMIN
   CUSTOMER
   VENDOR
   ADMIN
@@ -149,7 +150,7 @@ model Order {
   coupon    Coupon?  @relation(fields: [couponId], references: [id])
   discount  Decimal  @default(0)
   payment   Payment?
-  
+
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 }
