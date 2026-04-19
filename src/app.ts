@@ -26,6 +26,11 @@ app.use(
   }),
 );
 
+app.use(
+  "/api/payments/stripe/webhook",
+  express.raw({ type: "application/json" })
+);
+
 // Parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -52,6 +57,7 @@ app.get("/", (_req: Request, res: Response) => {
   });
 });
 
+
 app.use(
   "/api-docs",
   swaggerUi.serve,
@@ -63,6 +69,18 @@ app.use(
     },
   })
 );
+
+// ─── Health Check ─────────────────────────────────────────────────────
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'electromart-api',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    requestId: req.requestId,
+  });  
+});
+
 
 app.use(notFound);
 app.use(globalErrorHandler);

@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('CUSTOMER', 'VENDOR', 'ADMIN');
+CREATE TYPE "Role" AS ENUM ('SUPER_ADMIN', 'CUSTOMER', 'VENDOR', 'ADMIN');
 
 -- CreateEnum
 CREATE TYPE "NotificationTargetType" AS ENUM ('USER', 'USERS', 'ROLE', 'ALL_USERS');

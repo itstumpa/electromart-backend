@@ -40,6 +40,36 @@ export const createAdmin = async () => {
   }
 };
 
+export const createCustomer = async () => {
+  try {
+    const customerEmail = process.env.CUSTOMER_EMAIL!;
+    const customerPassword = process.env.CUSTOMER_PASSWORD!;
+
+    let customer = await prisma.user.findUnique({
+      where: { email: customerEmail },
+    });
+
+    if (!customer) {
+      customer = await prisma.user.create({
+        data: {
+          name: "Customer",
+          email: customerEmail,
+          password: await hashPassword(customerPassword),
+          role: "CUSTOMER",
+          isEmailVerified: true,
+        },
+      });
+
+      console.log("✅ Customer created");
+    } else {
+      console.log("⚠️ Customer already exists");
+    }
+  } catch (error) {
+    console.error("❌ Customer seed failed:", error);
+  }
+};
+
+
 // super admin created 
 
 export const createSuperAdmin = async () => {
@@ -67,6 +97,7 @@ export const createSuperAdmin = async () => {
     } else {
       console.log("⚠️ Super Admin already exists");
     }
+
 
 
     // =========================
