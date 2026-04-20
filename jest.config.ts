@@ -6,7 +6,7 @@ const config: Config = {
   testEnvironment: "node",
   rootDir: ".",
   testMatch: ["**/tests/**/*.test.ts"],
-  setupFilesAfterFramework: ["./tests/setup.ts"],
+setupFilesAfterEnv: ["<rootDir>/src/tests/setup.ts"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },

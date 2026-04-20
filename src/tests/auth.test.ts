@@ -16,10 +16,10 @@ describe("Auth API", () => {
     await prisma.user.deleteMany({ where: { email: TEST_USER.email } });
   });
 
-  describe("POST /api/auth/signup", () => {
+  describe("POST /api/v1/auth/signup", () => {
     it("should register a new user", async () => {
       const res = await request(app)
-        .post("/api/auth/signup")
+        .post("/api/v1/auth/signup")
         .send(TEST_USER);
 
       expect(res.statusCode).toBe(201);
@@ -29,7 +29,7 @@ describe("Auth API", () => {
 
     it("should reject duplicate email", async () => {
       const res = await request(app)
-        .post("/api/auth/signup")
+        .post("/api/v1/auth/signup")
         .send(TEST_USER);
 
       expect(res.statusCode).toBe(409);
@@ -38,25 +38,33 @@ describe("Auth API", () => {
 
     it("should reject missing fields", async () => {
       const res = await request(app)
-        .post("/api/auth/signup")
+        .post("/api/v1/auth/signup")
         .send({ email: "missing@test.com" });
 
       expect(res.statusCode).toBe(400);
     });
   });
 
-  describe("POST /api/auth/signin", () => {
+  describe("POST /api/v1/auth/signin", () => {
     beforeAll(async () => {
       // manually verify email for test user
-      await prisma.user.update({
-        where: { email: TEST_USER.email },
-        data: { isEmailVerified: true },
-      });
+ await prisma.user.upsert({
+  where: { email: TEST_USER.email },
+  update: {
+    isEmailVerified: true,
+  },
+  create: {
+    name: TEST_USER.name,
+    email: TEST_USER.email,
+    password: "hashedPassword", // or match your real hash logic
+    isEmailVerified: true,
+  },
+});
     });
 
     it("should sign in successfully", async () => {
       const res = await request(app)
-        .post("/api/auth/signin")
+        .post("/api/v1/auth/signin")
         .send({ email: TEST_USER.email, password: TEST_USER.password });
 
       expect(res.statusCode).toBe(200);
@@ -66,17 +74,17 @@ describe("Auth API", () => {
 
     it("should reject wrong password", async () => {
       const res = await request(app)
-        .post("/api/auth/signin")
+        .post("/api/v1/auth/signin")
         .send({ email: TEST_USER.email, password: "wrongpassword" });
 
       expect(res.statusCode).toBe(401);
     });
   });
 
-  describe("GET /api/auth/me", () => {
+  describe("GET /api/v1/auth/me", () => {
     it("should return current user with valid token", async () => {
       const res = await request(app)
-        .get("/api/auth/me")
+        .get("/api/v1/auth/me")
         .set("Authorization", `Bearer ${accessToken}`);
 
       expect(res.statusCode).toBe(200);
@@ -84,7 +92,7 @@ describe("Auth API", () => {
     });
 
     it("should reject without token", async () => {
-      const res = await request(app).get("/api/auth/me");
+      const res = await request(app).get("/api/v1/auth/me");
       expect(res.statusCode).toBe(401);
     });
   });

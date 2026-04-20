@@ -1,5 +1,8 @@
 // tests/setup.ts
+import dotenv from "dotenv";
 import { prisma } from "../lib/prisma";
+
+dotenv.config();
 
 beforeAll(async () => {
   await prisma.$connect();

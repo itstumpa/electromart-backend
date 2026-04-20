@@ -22,7 +22,7 @@ router.get("/recently-viewed", authenticate, ProductController.getRecentlyViewed
 
 // VENDOR only
 router.post("/", authenticate, authorize("VENDOR"), validate(createProductSchema), ProductController.createProduct);
-router.get("/my/products", authenticate, authorize("VENDOR"), ProductController.getMyProducts);
+router.get("/my/products", authenticate, authorize("VENDOR", "CUSTOMER"), ProductController.getMyProducts);
 router.patch("/:id", authenticate, authorize("VENDOR", "ADMIN"), validate(updateProductSchema), ProductController.updateProduct);
 
 // VENDOR — upload product images (max 5 at once)

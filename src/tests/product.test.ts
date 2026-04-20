@@ -11,7 +11,7 @@ describe("Product API", () => {
   beforeAll(async () => {
     // sign in as vendor
     const res = await request(app)
-      .post("/api/auth/signin")
+      .post("/api/V1/auth/signin")
       .send({
         email: process.env.VENDOR_ONE_EMAIL,
         password: process.env.VENDOR_ONE_PASSWORD,
@@ -23,10 +23,10 @@ describe("Product API", () => {
     categoryId = cat?.id ?? "";
   });
 
-  describe("GET /api/products", () => {
+  describe("GET /api/V1/products", () => {
     it("should return paginated products", async () => {
       const res = await request(app)
-        .get("/api/products")
+        .get("/api/V1/products")
         .query({ page: 1, limit: 5 });
 
       expect(res.statusCode).toBe(200);
@@ -37,14 +37,14 @@ describe("Product API", () => {
 
     it("should filter by search query", async () => {
       const res = await request(app)
-        .get("/api/products")
+        .get("/api/V1/products")
         .query({ search: "phone" });
 
       expect(res.statusCode).toBe(200);
     });
   });
 
-  describe("POST /api/products", () => {
+  describe("POST /api/V1/products", () => {
     it("should create a product as vendor", async () => {
       const res = await request(app)
         .post("/api/products")
@@ -64,23 +64,23 @@ describe("Product API", () => {
 
     it("should reject without auth", async () => {
       const res = await request(app)
-        .post("/api/products")
+        .post("/api/V1/products")
         .send({ name: "Unauthorized" });
 
       expect(res.statusCode).toBe(401);
     });
   });
 
-  describe("GET /api/products/:id", () => {
+  describe("GET /api/V1/products/:id", () => {
     it("should return product by id", async () => {
       if (!productId) return;
-      const res = await request(app).get(`/api/products/${productId}`);
+      const res = await request(app).get(`/api/V1/products/${productId}`);
       expect(res.statusCode).toBe(200);
       expect(res.body.data.id).toBe(productId);
     });
 
     it("should return 404 for unknown product", async () => {
-      const res = await request(app).get("/api/products/nonexistent-id-123");
+      const res = await request(app).get("/api/V1/products/nonexistent-id-123");
       expect(res.statusCode).toBe(404);
     });
   });
