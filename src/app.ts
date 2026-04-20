@@ -1,51 +1,68 @@
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
-import router from "./app/routers";
 import passport from "passport";
+import cookieParser from "cookie-parser";
+import compression from "compression";
+import helmet from "helmet";
+import hpp from "hpp";
+import http from "http";
+import swaggerUi from "swagger-ui-express";
+
+import router from "./app/routers";
 import "./app/config/passport";
-import config from "./app/config/index";
+import config from "./app/config";
 import notFound from "./app/middlewares/notFound";
 import globalErrorHandler from "./app/middlewares/globalErrorHandler";
-import cookieParser from "cookie-parser";
-// import { rateLimiter,  } from "./app/middlewares/rateLimiter";
-import compression from "compression";
-import http from "http";
 import { initSocket } from "./socket/socket";
-import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./app/config/swagger";
 import { globalLimiter } from "./app/middlewares/rateLimiter";
-
+import { requestLogger } from "./app/middlewares/requestLogger";
+import { slowQueryLogger } from "./app/middlewares/slowQueryLogger";
 
 const app: Application = express();
 
-// middlewares
+// ── Security ─────────────────────────────────────────────────────────────
+app.use(helmet());
+app.use(hpp());
+
 app.use(
   cors({
     origin: config.frontend_url,
     credentials: true,
-  }),
+    methods: ["GET", "POST", "PATCH", "DELETE", "PUT"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
 );
 
+// ── Stripe Webhook ──────────────────────────────────────────────────────
 app.use(
   "/api/payments/stripe/webhook",
   express.raw({ type: "application/json" })
 );
 
-// Parser
-app.use(express.json());
+// ── Parsers ─────────────────────────────────────────────────────────────
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// ── Compression ────────────────────────────────────────────────────────
+app.use(compression());
+
+// ── Logging ────────────────────────────────────────────────────────────
+app.use(requestLogger);
+app.use(slowQueryLogger);
+
+// ── Auth ───────────────────────────────────────────────────────────────
 app.use(passport.initialize());
 
-// Gzip compression
-app.use(compression());
-// Redis Rate limit 
+// ── Rate Limiting ──────────────────────────────────────────────────────
 app.use(globalLimiter);
 
+// ── HTTP + Socket ──────────────────────────────────────────────────────
 const httpServer = http.createServer(app);
 initSocket(httpServer);
 
-// MAIN ROUTE
+// ── Main Routes ────────────────────────────────────────────────────────
 app.use("/api/v1", router);
 
 app.get("/", (_req: Request, res: Response) => {
@@ -57,31 +74,30 @@ app.get("/", (_req: Request, res: Response) => {
   });
 });
 
-
+// ── Swagger ────────────────────────────────────────────────────────────
 app.use(
   "/api-docs",
   swaggerUi.serve,
   swaggerUi.setup(swaggerSpec, {
     customSiteTitle: "ElectroMart API Docs",
-    customCss: ".swagger-ui .topbar { background-color: #1a1a2e; }",
-    swaggerOptions: {
-      persistAuthorization: true, // keeps JWT saved on page refresh
-    },
+    swaggerOptions: { persistAuthorization: true },
   })
 );
 
-// ─── Health Check ─────────────────────────────────────────────────────
-app.get('/health', (req, res) => {
+// ── Health Check ───────────────────────────────────────────────────────
+app.get("/health", (req, res) => {
   res.json({
-    status: 'ok',
-    service: 'electromart-api',
-    version: '1.0.0',
+    status: "ok",
+    uptime: process.uptime(),
+    service: "electromart-api",
+    version: "1.0.0",
     timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
     requestId: req.requestId,
-  });  
+  });
 });
 
-
+// ── Error Handling ─────────────────────────────────────────────────────
 app.use(notFound);
 app.use(globalErrorHandler);
 
