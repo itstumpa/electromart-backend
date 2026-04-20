@@ -8,6 +8,7 @@ import { prisma } from "../../../lib/prisma";
 import ApiError from "../../../utils/apiErrors";
 import { IOptions } from "../../shared/paginationHelper";
 import { addRecentlyViewed, getRecentlyViewed } from "../../../utils/recentlyViewed";
+import { uploadQueue } from "../../../jobs/queues/upload.queue";
 
 export const searchProducts = catchAsync(async (req: Request, res: Response) => {
   const { q, categoryId, minPrice, maxPrice, page, limit, sortBy, sortOrder } = req.query;
@@ -96,6 +97,18 @@ export const uploadProductImages = catchAsync(async (req: Request, res: Response
     throw new ApiError(403, "You can only upload images to your own products");
   }
 
+  // queue each upload — return immediately
+  const jobs = await Promise.all(
+    files.map((file, index) =>
+      uploadQueue.add(`upload-${index}`, {
+        fileBuffer: file.buffer.toString("base64"), // serialize for queue
+        folder: "electromart/products",
+        productId: product.id,
+        ownerId: req.user!.id,
+      })
+    )
+  );
+
   // upload all files to cloudinary in parallel
   const uploads = await Promise.all(
     files.map((file) =>
@@ -117,10 +130,10 @@ export const uploadProductImages = catchAsync(async (req: Request, res: Response
   );
 
   sendResponse(res, {
-    statusCode: 201,
+    statusCode: 202,
     success: true,
-    message: `${images.length} image(s) uploaded successfully`,
-    data: images,
+    message: `${images.length} image(s) queued for upload. They will appear shortly.`,
+     data: { jobIds: jobs.map((j) => j.id) },
   });
 });
 
