@@ -41,7 +41,7 @@ async function startServer() {
       // background jobs
       startLeaderboardJob();
       startWeeklyDigestJob();
-      // startAllWorkers();
+      startAllWorkers();
     });
 
     // Graceful shutdown
