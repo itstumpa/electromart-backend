@@ -76,6 +76,8 @@ model ProductQuestion {
   answeredAt DateTime?
   answeredBy String?         // vendor userId
   createdAt  DateTime        @default(now())
+  @@index([productId])
+  @@index([customerId])
 }
 
 // ── Stock Alerts ──────────────────────────────────────────────────────────────
@@ -88,6 +90,7 @@ model StockAlert {
   notified  Boolean  @default(false)
   createdAt DateTime @default(now())
   @@unique([userId, productId])
+    @@index([productId, notified])
 }
 
 // ── Push Notification Subscriptions ──────────────────────────────────────────
@@ -125,6 +128,8 @@ questions          ProductQuestion[] @relation("CustomerQuestions")
   cart Cart?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
+    @@index([email])
+@@index([role])
 }
 
 model Store {
@@ -140,6 +145,9 @@ model Store {
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  @@index([ownerId])
+  @@index([isActive])
+  @@index([slug])
 }
 
 model Category {
@@ -172,6 +180,14 @@ questions  ProductQuestion[]
 stockAlerts StockAlert[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+
+    @@index([storeId])
+  @@index([categoryId])
+  @@index([isActive])
+  @@index([price])
+  @@index([createdAt])
+  @@index([storeId, isActive])       // compound — vendor product listing
+  @@index([categoryId, isActive])    // compound — category browsing
 }
 
 model ProductImage {
@@ -245,6 +261,10 @@ model Order {
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+    @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([customerId, status])      // compound — my orders by status
 }
 
 model OrderItem {
@@ -260,6 +280,10 @@ model OrderItem {
   priceAtTime  Decimal     // snapshot of price when ordered
   status       OrderStatus @default(PENDING)  // vendor controls this
   createdAt    DateTime    @default(now())
+    @@index([orderId])
+  @@index([storeId])
+  @@index([productId])
+  @@index([status])
 }
 
 model Cart {
@@ -282,6 +306,8 @@ model CartItem {
   updatedAt DateTime @updatedAt
 
   @@unique([cartId, productId]) // one product per cart, quantity handles count
+    @@index([cartId])
+  @@index([productId])
 }
 // ── Notifications ─────────────────────────────────────────────────────────────
 model Notification {
@@ -293,6 +319,9 @@ model Notification {
   type      String   // ORDER_PLACED, ORDER_STATUS_CHANGED, NEW_ORDER_VENDOR, RETURN_REQUESTED, RETURN_RESOLVED
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+    @@index([userId])
+  @@index([userId, isRead])          // compound — unread count query
+  @@index([createdAt])
 }
 // ── Coupons ───────────────────────────────────────────────────────────────────
 model Coupon {
@@ -336,5 +365,8 @@ model Review {
   updatedAt  DateTime @updatedAt
 
   @@unique([customerId, productId]) // one review per product per customer
+    @@index([productId])
+  @@index([customerId])
+  @@index([rating])
 }
 

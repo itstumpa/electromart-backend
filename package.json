@@ -8,13 +8,21 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "scripts": {
-    "seed:admin": "tsx prisma/admin-seed.ts",
-    "test": "jest",
     "dev": "ts-node-dev --respawn --transpile-only ./src/server.ts",
+    "seed:admin": "tsx prisma/admin-seed.ts",
     "postinstall": "prisma generate",
     "build": "tsc",
+    "pm2":        "pm2 start ecosystem.config.js --env production",
+    "pm2:reload": "pm2 reload electromart-api",
+    "seed":       "npx prisma db seed",
+    "test":       "jest --forceExit --detectOpenHandles",
     "test:watch": "jest --watch",
-    "start": "node dist/server.js"
+    "test:cov":   "jest --coverage",
+    "lint":       "eslint src --ext .ts",
+    "lint:fix":   "eslint src --ext .ts --fix",
+    "format":     "prettier --write src/**/*.ts",
+    "typecheck":  "tsc --noEmit"
+
   },
   "keywords": [],
   "author": "",
@@ -31,6 +39,7 @@
     "@types/jest": "^30.0.0",
     "@types/json2csv": "^5.0.7",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/mocha": "^10.0.10",
     "@types/morgan": "^1.9.10",
     "@types/multer": "^2.1.0",
     "@types/node": "^25.6.0",
