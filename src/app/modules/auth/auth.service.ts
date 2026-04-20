@@ -8,6 +8,7 @@ import ApiError from "../../../utils/apiErrors";
 import { setAuthCookies } from "../../../utils/cookieHelpers";
 import { sendEmail } from "../../../utils/sendEmail";
 import config from "../../config/index";
+import { emailQueue } from "../../../jobs/queues/email.queue";
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
 
@@ -57,14 +58,12 @@ export const signup = async (data: {
 
   const verifyUrl = `${process.env.APP_URL}/api/v1/auth/verify-email?token=${emailVerifyToken}`;
 
-  await sendEmail({
-    to: user.email,
-    subject: "Verify your ElectroMart account",
-    html: `<p>Hi ${user.name},</p>
-           <p>Click the link below to verify your email:</p>
-           <a href="${verifyUrl}">${verifyUrl}</a>
-           <p>This link expires in 24 hours.</p>`,
-  });
+await emailQueue.add("verify-email", {
+  type: "VERIFY_EMAIL",
+  to: user.email,
+  name: user.name,
+  verifyUrl: `${process.env.CLIENT_URL}/verify-email?token=${emailVerifyToken}`,
+});
 
   return user;
 };
@@ -188,12 +187,11 @@ export const requestPasswordReset = async (email: string) => {
     },
   });
 
-  await sendEmail({
-    to: user.email,
-    subject: "ElectroMart Password Reset Code",
-    html: `<p>Your password reset code is: <strong>${resetToken}</strong></p>
-           <p>This code expires in 15 minutes.</p>`,
-  });
+await emailQueue.add("reset-password", {
+  type: "RESET_PASSWORD",
+  to: user.email,
+  resetToken,
+});
 
   return { message: "If that email exists, a reset code was sent" };
 };

@@ -5,6 +5,7 @@ import { sendNotificationToUser } from "../../../socket/socket";
 import ApiError from "../../../utils/apiErrors";
 import { sendEmail } from "../../../utils/sendEmail";
 import { sendPushToUser } from "../../../utils/sendPushNotification";
+import { notificationQueue } from "../../../jobs/queues/notification.queue";
 
 
 interface CreateNotificationInput {
@@ -25,6 +26,11 @@ interface SendNotificationPayload {
 
 // create DB record + emit real-time
 export const createNotification = async (data: CreateNotificationInput) => {
+   await notificationQueue.add("create-notification", {
+    ...data,
+    sendPush: true,
+    sendSocket: true,
+  });
   const notification = await prisma.notification.create({ data });
 
   // fire and forget real-time emit

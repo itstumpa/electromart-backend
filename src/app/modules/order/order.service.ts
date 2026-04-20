@@ -12,6 +12,8 @@ import {
 import { validateCoupon } from "../coupon/coupon.service";
 import { IOptions, paginationHelper } from "../../shared/paginationHelper";
 import { addStatusHistory } from "../order-tracking/orderTracking.service";
+import { emailQueue } from "../../../jobs/queues/email.queue";
+import { notificationQueue } from "../../../jobs/queues/notification.queue";
 
 
 export const placeOrder = async (customerId: string, couponCode?: string) => {
@@ -108,12 +110,25 @@ await addStatusHistory(order.id, "PENDING", "Order placed successfully");
   });
 
   // 1. notify customer — in-app + email
-  await createNotification({
-    userId: customerId,
-    title: "Order Placed",
-    message: `Your order #${order.id.slice(-6).toUpperCase()} has been placed successfully`,
-    type: "ORDER_PLACED",
-  });
+await emailQueue.add("order-confirmed", {
+  type: "ORDER_CONFIRMED",
+  to: customer!.email,
+  customerName: customer!.name,
+  orderId: order.id,
+  totalAmount: Number(totalAmount),
+  items: cart.items.map((i) => ({
+    name: i.product.name,
+    quantity: i.quantity,
+    price: Number(i.product.price),
+  })),
+});
+
+await notificationQueue.add("order-placed", {
+  userId: customerId,
+  title: "Order Placed",
+  message: `Your order #${order.id.slice(-6).toUpperCase()} was placed`,
+  type: "ORDER_PLACED",
+});
 
   const emailData = orderConfirmedEmail(
     customer!.name,
@@ -159,6 +174,27 @@ await addStatusHistory(order.id, "PENDING", "Order placed successfully");
       message: `You have a new order with ${vendor.items.length} item(s) in ${vendor.storeName}`,
       type: "NEW_ORDER_VENDOR",
     });
+
+
+
+    for (const vendor of vendorMap.values()) {
+  await emailQueue.add("new-order-vendor", {
+    type: "NEW_ORDER_VENDOR",
+    to: vendor.email,
+    vendorName: vendor.name,
+    storeName: vendor.storeName,
+    orderId: order.id,
+    items: vendor.items,
+  });
+
+  await notificationQueue.add("new-order-vendor", {
+    userId: vendor.ownerId,
+    title: "New Order",
+    message: `You have a new order with ${vendor.items.length} item(s) in ${vendor.storeName}`,
+
+    type: "NEW_ORDER_VENDOR",
+  });
+}
 
     const vendorEmail = newOrderVendorEmail(
       vendor.name,
