@@ -38,13 +38,15 @@ export const signup = async (data: {
   const existing = await prisma.user.findUnique({
     where: { email: data.email },
   });
-  if (existing) throw new ApiError(409, "Email already in use");
+
+  if (existing) {
+    throw new ApiError(409, "Email already in use");
+  }
 
   const hashedPassword = await bcrypt.hash(data.password, 10);
 
-  // generate email verification token
   const emailVerifyToken = crypto.randomBytes(32).toString("hex");
-  const emailVerifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24hrs
+  const emailVerifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   const user = await prisma.user.create({
     data: {
@@ -53,17 +55,26 @@ export const signup = async (data: {
       emailVerifyToken,
       emailVerifyExpiry,
     },
-    select: { id: true, name: true, email: true, role: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+    },
   });
 
-  const verifyUrl = `${process.env.APP_URL}/api/v1/auth/verify-email?token=${emailVerifyToken}`;
-
-await emailQueue.add("verify-email", {
-  type: "VERIFY_EMAIL",
-  to: user.email,
-  name: user.name,
-  verifyUrl: `${process.env.CLIENT_URL}/verify-email?token=${emailVerifyToken}`,
-});
+const verifyUrl = `${process.env.APP_URL}/api/v1/auth/verify-email?token=${emailVerifyToken}`;
+  if (process.env.REDIS_URL) {
+    await emailQueue.add("verify-email", {
+      type: "VERIFY_EMAIL",
+      to: user.email,
+      name: user.name,
+      verifyUrl,
+    });
+  } else {
+    console.warn("⚠️ Redis not configured, skipping email queue");
+    console.log("Verification URL:", verifyUrl);
+  }
 
   return user;
 };
@@ -107,8 +118,7 @@ export const resendEmailVerification = async (email: string) => {
     data: { emailVerifyToken, emailVerifyExpiry },
   });
 
-  const verifyUrl = `${process.env.CLIENT_URL}/verify-email?token=${emailVerifyToken}`;
-
+const verifyUrl = `${process.env.APP_URL}/api/v1/auth/verify-email?token=${emailVerifyToken}`;
   await sendEmail({
     to: user.email,
     subject: "Verify your ElectroMart account",
