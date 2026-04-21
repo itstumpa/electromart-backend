@@ -64,6 +64,7 @@ export const signup = async (data: {
   });
 
 const verifyUrl = `${process.env.APP_URL}/api/v1/auth/verify-email?token=${emailVerifyToken}`;
+
   if (process.env.REDIS_URL) {
     await emailQueue.add("verify-email", {
       type: "VERIFY_EMAIL",
