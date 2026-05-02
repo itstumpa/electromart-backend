@@ -1,5 +1,7 @@
 ```
-https://electromart-backend-nine.vercel.app/api/v1/
+## 🚀 Live Demo
+[Backend](https://electromart-backend-three.vercel.app)
+[Frontend](https://electromart-frontend-jet.vercel.app)
 
 ```
 
