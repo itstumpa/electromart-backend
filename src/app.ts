@@ -36,7 +36,7 @@ app.use(
 
 // ── Stripe Webhook ──────────────────────────────────────────────────────
 app.use(
-  "/api/payments/stripe/webhook",
+  "/api/v1/payments/stripe/webhook",
   express.raw({ type: "application/json" })
 );
 
