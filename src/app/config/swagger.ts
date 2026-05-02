@@ -1,6 +1,7 @@
 // src/config/swagger.ts
 import swaggerJsdoc from "swagger-jsdoc";
-const API_PREFIX = "/v1";
+const API_VERSION_PREFIX = "/api/v1";
+const LOCAL_SERVER_URL = `http://localhost:5000${API_VERSION_PREFIX}`;
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -9,11 +10,11 @@ const options: swaggerJsdoc.Options = {
       title: "ElectroMart API",
       version: "2.0.0",
       description: "Production-grade multi-vendor e-commerce REST API",
-      contact: { name: "ElectroMart Dev Team" },
+      contact: { name: "ElectroMart Dev Team-itsTumpa" },
     },
 servers: [
-  { url: `http://localhost:5000${API_PREFIX}`, description: "Development" },
-  { url: `${process.env.API_URL || ""}${API_PREFIX}`, description: "Production" },
+  { url: LOCAL_SERVER_URL, description: "Development" },
+  { url: `${process.env.BACKEND_URL || ""}${API_VERSION_PREFIX}`, description: "Production" },
 ],
     components: {
       securitySchemes: {
