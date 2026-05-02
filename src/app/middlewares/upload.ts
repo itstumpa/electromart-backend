@@ -5,7 +5,6 @@ import ApiError from "../../utils/apiErrors";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "video/mp4", "application/pdf"];
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
-console.log(MAX_SIZE, "max size 5mb");
 const storage = multer.memoryStorage();
 
 const fileFilter = (
