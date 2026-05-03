@@ -1,19 +1,21 @@
-// src/utils/uploadToCloudinary.ts
-import { UploadApiResponse } from "cloudinary";
-import cloudinary from "../app/config/cloudinary";
+import { UploadApiResponse } from 'cloudinary';
+import cloudinary from '../app/config/cloudinary';
+
+type ResourceType = 'image' | 'video' | 'raw';
 
 export const uploadToCloudinary = (
   fileBuffer: Buffer,
-  folder: string
+  folder: string,
+  resourceType: ResourceType = 'image'
 ): Promise<UploadApiResponse> => {
   return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      { folder, resource_type: "image" },
-      (error, result) => {
-        if (error || !result) return reject(error);
-        resolve(result);
+    const stream = cloudinary.uploader.upload_stream({ folder, resource_type: resourceType }, (error, result) => {
+      if (error || !result) {
+        return reject(error || new Error('Cloudinary upload failed'));
       }
-    );
+      resolve(result);
+    });
+
     stream.end(fileBuffer);
   });
 };

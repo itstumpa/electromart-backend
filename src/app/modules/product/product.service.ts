@@ -1,15 +1,11 @@
-import { prisma } from "../../../lib/prisma";
-import ApiError from "../../../utils/apiErrors";
-import { IOptions, paginationHelper } from "../../shared/paginationHelper";
-import { notifyStockAlert } from "../stock-alert/stockAlert.service";
-import {
-  getOrSetCache,
-  invalidateCache,
-  invalidateCachePattern,
-} from "../../../utils/cache";
+import { prisma } from '../../../lib/prisma';
+import ApiError from '../../../utils/apiErrors';
+import { IOptions, paginationHelper } from '../../shared/paginationHelper';
+import { notifyStockAlert } from '../stock-alert/stockAlert.service';
+import { getOrSetCache, invalidateCache, invalidateCachePattern } from '../../../utils/cache';
 
-import { CacheKeys } from "../../../utils/cacheKeys";
-
+import { CacheKeys } from '../../../utils/cacheKeys';
+import cloudinary from '../../config/cloudinary';
 
 // ─────────────────────────────────────────────
 // VENDOR — create product
@@ -27,12 +23,12 @@ export const createProduct = async (
   }
 ) => {
   const store = await prisma.store.findUnique({ where: { ownerId } });
-  if (!store) throw new ApiError(404, "You need to create a store first");
+  if (!store) throw new ApiError(404, 'You need to create a store first');
 
   const category = await prisma.category.findUnique({
     where: { id: data.categoryId },
   });
-  if (!category) throw new ApiError(404, "Category not found");
+  if (!category) throw new ApiError(404, 'Category not found');
 
   const { images, variants, ...productData } = data;
 
@@ -47,11 +43,41 @@ export const createProduct = async (
   });
 
   // invalidate product cache
-  await invalidateCachePattern("products:*");
+  await invalidateCachePattern('products:*');
 
   return product;
 };
 
+export const uploadToCloudinary = async (file: Express.Multer.File) => {
+  return new Promise((resolve, reject) => {
+    let resource_type: 'image' | 'video' | 'raw' = 'image';
+    let folder = 'general';
+
+    if (file.mimetype.startsWith('image/')) {
+      folder = 'images';
+      resource_type = 'image';
+    } else if (file.mimetype === 'application/pdf') {
+      folder = 'documents';
+      resource_type = 'raw';
+    } else if (file.mimetype.startsWith('video/')) {
+      folder = 'videos';
+      resource_type = 'video';
+    }
+
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type,
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+
+    stream.end(file.buffer);
+  });
+};
 
 // ─────────────────────────────────────────────
 // PUBLIC — get all products (cached)
@@ -66,8 +92,7 @@ export const getAllProducts = async (
   },
   options: IOptions
 ) => {
-  const { page, limit, skip, sortBy, sortOrder } =
-    paginationHelper.calculatePagination(options);
+  const { page, limit, skip, sortBy, sortOrder } = paginationHelper.calculatePagination(options);
 
   const cacheKey = JSON.stringify({ query, options });
 
@@ -80,7 +105,7 @@ export const getAllProducts = async (
         ...(query.categoryId && { categoryId: query.categoryId }),
         ...(query.storeId && { storeId: query.storeId }),
         ...(query.search && {
-          name: { contains: query.search, mode: "insensitive" as const },
+          name: { contains: query.search, mode: 'insensitive' as const },
         }),
         ...((query.minPrice || query.maxPrice) && {
           price: {
@@ -118,7 +143,6 @@ export const getAllProducts = async (
   );
 };
 
-
 // ─────────────────────────────────────────────
 // PUBLIC — get single product (cached)
 // ─────────────────────────────────────────────
@@ -137,28 +161,23 @@ export const getProductById = async (id: string) => {
         },
       });
 
-      if (!product) throw new ApiError(404, "Product not found");
+      if (!product) throw new ApiError(404, 'Product not found');
       return product;
     }
   );
 };
 
-
 // ─────────────────────────────────────────────
 // SEARCH — cached (short TTL)
 // ─────────────────────────────────────────────
-export const searchProducts = async (
-  query: any,
-  options: IOptions
-) => {
+export const searchProducts = async (query: any, options: IOptions) => {
   const cacheKey = JSON.stringify({ query, options });
 
   return getOrSetCache(
     CacheKeys.SEARCH_PRODUCTS(cacheKey),
     120, // 2 min
     async () => {
-      const { page, limit, skip, sortBy, sortOrder } =
-        paginationHelper.calculatePagination(options);
+      const { page, limit, skip, sortBy, sortOrder } = paginationHelper.calculatePagination(options);
 
       const where: any = {
         isActive: true,
@@ -171,10 +190,10 @@ export const searchProducts = async (
         }),
         ...(query.q && {
           OR: [
-            { name: { contains: query.q, mode: "insensitive" } },
-            { description: { contains: query.q, mode: "insensitive" } },
-            { category: { name: { contains: query.q, mode: "insensitive" } } },
-            { store: { name: { contains: query.q, mode: "insensitive" } } },
+            { name: { contains: query.q, mode: 'insensitive' } },
+            { description: { contains: query.q, mode: 'insensitive' } },
+            { category: { name: { contains: query.q, mode: 'insensitive' } } },
+            { store: { name: { contains: query.q, mode: 'insensitive' } } },
           ],
         }),
       };
@@ -202,46 +221,37 @@ export const searchProducts = async (
   );
 };
 
-
 // ─────────────────────────────────────────────
 // SEARCH SUGGESTIONS (cached)
 // ─────────────────────────────────────────────
 export const getSearchSuggestions = async (q: string) => {
   if (!q || q.length < 2) return [];
 
-  return getOrSetCache(
-    CacheKeys.SEARCH_SUGGESTIONS(q),
-    300,
-    () =>
-      prisma.product.findMany({
-        where: {
-          isActive: true,
-          name: { contains: q, mode: "insensitive" },
-        },
-        select: { id: true, name: true, images: { take: 1 } },
-        take: 8,
-      })
+  return getOrSetCache(CacheKeys.SEARCH_SUGGESTIONS(q), 300, () =>
+    prisma.product.findMany({
+      where: {
+        isActive: true,
+        name: { contains: q, mode: 'insensitive' },
+      },
+      select: { id: true, name: true, images: { take: 1 } },
+      take: 8,
+    })
   );
 };
-
 
 // ─────────────────────────────────────────────
 // UPDATE PRODUCT (invalidate cache)
 // ─────────────────────────────────────────────
-export const updateProduct = async (
-  productId: string,
-  ownerId: string,
-  data: any
-) => {
+export const updateProduct = async (productId: string, ownerId: string, data: any) => {
   const product = await prisma.product.findUnique({
     where: { id: productId },
     include: { store: true },
   });
 
-  if (!product) throw new ApiError(404, "Product not found");
+  if (!product) throw new ApiError(404, 'Product not found');
 
   if (product.store.ownerId !== ownerId) {
-    throw new ApiError(403, "You can only update your own products");
+    throw new ApiError(403, 'You can only update your own products');
   }
 
   const updated = await prisma.product.update({
@@ -250,48 +260,38 @@ export const updateProduct = async (
   });
 
   // notify only when stock was previously empty and now restocked
-  if (
-    typeof data.stock === "number" &&
-    product.stock <= 0 &&
-    data.stock > 0
-  ) {
+  if (typeof data.stock === 'number' && product.stock <= 0 && data.stock > 0) {
     await notifyStockAlert(productId);
   }
 
   await invalidateCache(CacheKeys.SINGLE_PRODUCT(productId));
-  await invalidateCachePattern("products:*");
+  await invalidateCachePattern('products:*');
 
   return updated;
 };
 
-
 // ─────────────────────────────────────────────
 // DELETE PRODUCT (invalidate cache)
 // ─────────────────────────────────────────────
-export const deleteProduct = async (
-  productId: string,
-  ownerId: string,
-  isAdmin: boolean
-) => {
+export const deleteProduct = async (productId: string, ownerId: string, isAdmin: boolean) => {
   const product = await prisma.product.findUnique({
     where: { id: productId },
     include: { store: true },
   });
 
-  if (!product) throw new ApiError(404, "Product not found");
+  if (!product) throw new ApiError(404, 'Product not found');
 
   if (!isAdmin && product.store.ownerId !== ownerId) {
-    throw new ApiError(403, "You can only delete your own products");
+    throw new ApiError(403, 'You can only delete your own products');
   }
 
   await prisma.product.delete({ where: { id: productId } });
 
   await invalidateCache(CacheKeys.SINGLE_PRODUCT(productId));
-  await invalidateCachePattern("products:*");
+  await invalidateCachePattern('products:*');
 
-  return { message: "Product deleted successfully" };
+  return { message: 'Product deleted successfully' };
 };
-
 
 // ─────────────────────────────────────────────
 // VENDOR PRODUCTS (optional cache)
@@ -303,6 +303,6 @@ export const getMyProducts = async (ownerId: string) => {
   return prisma.product.findMany({
     where: { storeId: store.id },
     include: { images: true, variants: true, category: true },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: 'desc' },
   });
 };

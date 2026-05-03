@@ -1,14 +1,14 @@
-import { prisma } from "../../../lib/prisma";
-import ApiError from "../../../utils/apiErrors";
-import { getOrSetCache } from "../../../utils/cache";
-import { CacheKeys } from "../../../utils/cacheKeys";
+import { prisma } from '../../../lib/prisma';
+import ApiError from '../../../utils/apiErrors';
+import { getOrSetCache } from '../../../utils/cache';
+import { CacheKeys } from '../../../utils/cacheKeys';
 
 export const getVendorAnalytics = async (ownerId: string) => {
   const store = await prisma.store.findUnique({
     where: { ownerId },
   });
 
-  if (!store) throw new ApiError(404, "Store not found");
+  if (!store) throw new ApiError(404, 'Store not found');
 
   const storeId = store.id;
 
@@ -16,16 +16,10 @@ export const getVendorAnalytics = async (ownerId: string) => {
     CacheKeys.VENDOR_ANALYTICS(storeId),
     180, // 3 min cache
     async () => {
-      const [
-        ordersByStatus,
-        customers,
-        topProducts,
-        avgOrderValue,
-        monthlyRevenue,
-      ] = await Promise.all([
+      const [ordersByStatus, customers, topProducts, avgOrderValue, monthlyRevenue] = await Promise.all([
         // orders by status
         prisma.orderItem.groupBy({
-          by: ["status"],
+          by: ['status'],
           where: { storeId },
           _count: { status: true },
         }),
@@ -36,22 +30,22 @@ export const getVendorAnalytics = async (ownerId: string) => {
           select: {
             order: { select: { customerId: true } },
           },
-          distinct: ["orderId"],
+          distinct: ['orderId'],
         }),
 
         // top products
         prisma.orderItem.groupBy({
-          by: ["productId"],
+          by: ['productId'],
           where: {
             storeId,
-            order: { status: "DELIVERED" },
+            order: { status: 'DELIVERED' },
           },
           _sum: {
             quantity: true,
             priceAtTime: true,
           },
           orderBy: {
-            _sum: { priceAtTime: "desc" },
+            _sum: { priceAtTime: 'desc' },
           },
           take: 5,
         }),
@@ -60,15 +54,13 @@ export const getVendorAnalytics = async (ownerId: string) => {
         prisma.orderItem.aggregate({
           where: {
             storeId,
-            order: { status: "DELIVERED" },
+            order: { status: 'DELIVERED' },
           },
           _avg: { priceAtTime: true },
         }),
 
         // monthly revenue
-        prisma.$queryRaw<
-          { month: string; revenue: number }[]
-        >`
+        prisma.$queryRaw<{ month: string; revenue: number }[]>`
           SELECT
             TO_CHAR(o."createdAt", 'YYYY-MM') AS month,
             SUM(oi."priceAtTime" * oi.quantity) AS revenue
@@ -108,9 +100,7 @@ export const getVendorAnalytics = async (ownerId: string) => {
       // ─────────────────────────────
       // unique customers
       // ─────────────────────────────
-      const uniqueCustomerIds = new Set(
-        customers.map((c) => c.order.customerId)
-      );
+      const uniqueCustomerIds = new Set(customers.map((c) => c.order.customerId));
 
       return {
         store: {
@@ -118,19 +108,14 @@ export const getVendorAnalytics = async (ownerId: string) => {
           name: store.name,
         },
 
-        ordersByStatus: ordersByStatus.reduce(
-          (acc: Record<string, number>, curr) => {
-            acc[curr.status] = curr._count.status;
-            return acc;
-          },
-          {}
-        ),
+        ordersByStatus: ordersByStatus.reduce((acc: Record<string, number>, curr) => {
+          acc[curr.status] = curr._count.status;
+          return acc;
+        }, {}),
 
         totalCustomers: uniqueCustomerIds.size,
 
-        averageOrderValue: Number(
-          (avgOrderValue._avg.priceAtTime || 0).toFixed(2)
-        ),
+        averageOrderValue: Number((avgOrderValue._avg.priceAtTime || 0).toFixed(2)),
 
         topProducts: topProductDetails,
 

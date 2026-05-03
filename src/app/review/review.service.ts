@@ -1,46 +1,34 @@
-import { prisma } from "../../lib/prisma";
-import ApiError from "../../utils/apiErrors";
-import {
-  getOrSetCache,
-  invalidateCachePattern,
-  invalidateCache,
-} from "../../utils/cache";
-import { CacheKeys } from "../../utils/cacheKeys";
-import { IOptions, paginationHelper } from "../shared/paginationHelper";
-
+import { prisma } from '../../lib/prisma';
+import ApiError from '../../utils/apiErrors';
+import { getOrSetCache, invalidateCachePattern, invalidateCache } from '../../utils/cache';
+import { CacheKeys } from '../../utils/cacheKeys';
+import { IOptions, paginationHelper } from '../shared/paginationHelper';
 
 // ─────────────────────────────────────────────
 // CUSTOMER — create review
 // ─────────────────────────────────────────────
-export const createReview = async (
-  customerId: string,
-  productId: string,
-  data: { rating: number; comment?: string }
-) => {
+export const createReview = async (customerId: string, productId: string, data: { rating: number; comment?: string }) => {
   const product = await prisma.product.findUnique({
     where: { id: productId },
     include: { store: true },
   });
 
-  if (!product) throw new ApiError(404, "Product not found");
+  if (!product) throw new ApiError(404, 'Product not found');
 
   if (product.store.ownerId === customerId) {
-    throw new ApiError(403, "You cannot review your own product");
+    throw new ApiError(403, 'You cannot review your own product');
   }
 
   const deliveredOrderItem = await prisma.orderItem.findFirst({
     where: {
       productId,
-      status: "DELIVERED",
+      status: 'DELIVERED',
       order: { customerId },
     },
   });
 
   if (!deliveredOrderItem) {
-    throw new ApiError(
-      403,
-      "You can only review purchased and delivered products"
-    );
+    throw new ApiError(403, 'You can only review purchased and delivered products');
   }
 
   const existing = await prisma.review.findUnique({
@@ -48,7 +36,7 @@ export const createReview = async (
   });
 
   if (existing) {
-    throw new ApiError(409, "Already reviewed");
+    throw new ApiError(409, 'Already reviewed');
   }
 
   const review = await prisma.review.create({
@@ -61,83 +49,66 @@ export const createReview = async (
   return review;
 };
 
-
 // ─────────────────────────────────────────────
 // PUBLIC — get product reviews (cached)
 // ─────────────────────────────────────────────
-export const getProductReviews = async (
-  productId: string,
-  options: IOptions
-) => {
-  const { page, limit, skip, sortBy, sortOrder } =
-    paginationHelper.calculatePagination(options);
+export const getProductReviews = async (productId: string, options: IOptions) => {
+  const { page, limit, skip, sortBy, sortOrder } = paginationHelper.calculatePagination(options);
 
   const cacheKey = `${productId}:${page}:${limit}:${sortBy}:${sortOrder}`;
 
-  return getOrSetCache(
-    CacheKeys.PRODUCT_REVIEWS(cacheKey),
-    300,
-    async () => {
-      const product = await prisma.product.findUnique({
-        where: { id: productId },
-      });
+  return getOrSetCache(CacheKeys.PRODUCT_REVIEWS(cacheKey), 300, async () => {
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+    });
 
-      if (!product) throw new ApiError(404, "Product not found");
+    if (!product) throw new ApiError(404, 'Product not found');
 
-      const where = { productId };
+    const where = { productId };
 
-      const [reviews, total] = await Promise.all([
-        prisma.review.findMany({
-          where,
-          include: {
-            customer: { select: { id: true, name: true } },
-          },
-          orderBy: { [sortBy]: sortOrder },
-          skip,
-          take: limit,
-        }),
-        prisma.review.count({ where }),
-      ]);
-
-      const avgRating =
-        reviews.length > 0
-          ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-          : 0;
-
-      return {
-        meta: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
+    const [reviews, total] = await Promise.all([
+      prisma.review.findMany({
+        where,
+        include: {
+          customer: { select: { id: true, name: true } },
         },
-        data: {
-          reviews,
-          averageRating: Number(avgRating.toFixed(1)),
-          totalReviews: total,
-        },
-      };
-    }
-  );
+        orderBy: { [sortBy]: sortOrder },
+        skip,
+        take: limit,
+      }),
+      prisma.review.count({ where }),
+    ]);
+
+    const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
+
+    return {
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      data: {
+        reviews,
+        averageRating: Number(avgRating.toFixed(1)),
+        totalReviews: total,
+      },
+    };
+  });
 };
-
 
 // ─────────────────────────────────────────────
 // CUSTOMER — update review
 // ─────────────────────────────────────────────
-export const updateReview = async (
-  reviewId: string,
-  customerId: string,
-  data: { rating?: number; comment?: string }
-) => {
+export const updateReview = async (reviewId: string, customerId: string, data: { rating?: number; comment?: string }) => {
   const review = await prisma.review.findUnique({
     where: { id: reviewId },
   });
 
-  if (!review) throw new ApiError(404, "Review not found");
+  if (!review) throw new ApiError(404, 'Review not found');
 
   if (review.customerId !== customerId) {
-    throw new ApiError(403, "Not allowed");
+    throw new ApiError(403, 'Not allowed');
   }
 
   const updated = await prisma.review.update({
@@ -150,23 +121,18 @@ export const updateReview = async (
   return updated;
 };
 
-
 // ─────────────────────────────────────────────
 // DELETE REVIEW
 // ─────────────────────────────────────────────
-export const deleteReview = async (
-  reviewId: string,
-  requesterId: string,
-  isAdmin: boolean
-) => {
+export const deleteReview = async (reviewId: string, requesterId: string, isAdmin: boolean) => {
   const review = await prisma.review.findUnique({
     where: { id: reviewId },
   });
 
-  if (!review) throw new ApiError(404, "Review not found");
+  if (!review) throw new ApiError(404, 'Review not found');
 
   if (!isAdmin && review.customerId !== requesterId) {
-    throw new ApiError(403, "Not allowed");
+    throw new ApiError(403, 'Not allowed');
   }
 
   await prisma.review.delete({
@@ -175,9 +141,8 @@ export const deleteReview = async (
 
   await invalidateCachePattern(`reviews:${review.productId}:*`);
 
-  return { message: "Deleted successfully" };
+  return { message: 'Deleted successfully' };
 };
-
 
 // ─────────────────────────────────────────────
 // CUSTOMER — my reviews (NO cache needed)
@@ -194,6 +159,6 @@ export const getMyReviews = async (customerId: string) => {
         },
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: 'desc' },
   });
 };

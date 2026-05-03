@@ -1,22 +1,19 @@
 // src/app/modules/stock-alert/stockAlert.service.ts
-import { prisma } from "../../../lib/prisma";
-import { createNotification } from "../notification/notification.service";
-import { sendEmail } from "../../../utils/sendEmail";
-import ApiError from "../../../utils/apiErrors";
+import { prisma } from '../../../lib/prisma';
+import { createNotification } from '../notification/notification.service';
+import { sendEmail } from '../../../utils/sendEmail';
+import ApiError from '../../../utils/apiErrors';
 
 // CUSTOMER — subscribe to stock alert
-export const subscribeToStockAlert = async (
-  userId: string,
-  productId: string
-) => {
+export const subscribeToStockAlert = async (userId: string, productId: string) => {
   const product = await prisma.product.findUnique({ where: { id: productId } });
-  if (!product) throw new ApiError(404, "Product not found");
-  if (product.stock > 0) throw new ApiError(400, "Product is already in stock");
+  if (!product) throw new ApiError(404, 'Product not found');
+  if (product.stock > 0) throw new ApiError(400, 'Product is already in stock');
 
   const existing = await prisma.stockAlert.findUnique({
     where: { userId_productId: { userId, productId } },
   });
-  if (existing) throw new ApiError(409, "Already subscribed to this alert");
+  if (existing) throw new ApiError(409, 'Already subscribed to this alert');
 
   return prisma.stockAlert.create({
     data: { userId, productId },
@@ -24,19 +21,16 @@ export const subscribeToStockAlert = async (
 };
 
 // CUSTOMER — unsubscribe
-export const unsubscribeFromStockAlert = async (
-  userId: string,
-  productId: string
-) => {
+export const unsubscribeFromStockAlert = async (userId: string, productId: string) => {
   const alert = await prisma.stockAlert.findUnique({
     where: { userId_productId: { userId, productId } },
   });
-  if (!alert) throw new ApiError(404, "Alert not found");
+  if (!alert) throw new ApiError(404, 'Alert not found');
 
   await prisma.stockAlert.delete({
     where: { userId_productId: { userId, productId } },
   });
-  return { message: "Unsubscribed from stock alert" };
+  return { message: 'Unsubscribed from stock alert' };
 };
 
 // CUSTOMER — get own alerts
@@ -46,7 +40,10 @@ export const getMyStockAlerts = async (userId: string) => {
     include: {
       product: {
         select: {
-          id: true, name: true, price: true, stock: true,
+          id: true,
+          name: true,
+          price: true,
+          stock: true,
           images: { take: 1 },
         },
       },
@@ -71,9 +68,9 @@ export const notifyStockAlert = async (productId: string) => {
     alerts.map(async (alert) => {
       await createNotification({
         userId: alert.userId,
-        title: "Back In Stock!",
+        title: 'Back In Stock!',
         message: `"${product.name}" is back in stock. Order now!`,
-        type: "STOCK_ALERT",
+        type: 'STOCK_ALERT',
       });
 
       await sendEmail({

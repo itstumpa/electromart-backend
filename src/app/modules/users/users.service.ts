@@ -1,22 +1,17 @@
 // src/app/modules/users/user.service.ts
-import { Role } from "@prisma/client";
-import bcrypt from "bcrypt";
-import { prisma } from "../../../lib/prisma";
-import ApiError from "../../../utils/apiErrors";
+import { Role } from '@prisma/client';
+import bcrypt from 'bcrypt';
+import { prisma } from '../../../lib/prisma';
+import ApiError from '../../../utils/apiErrors';
 
 // CREATE
-export const createUser = async (data: {
-  name: string;
-  email: string;
-  password: string;
-  role?: "CUSTOMER" | "VENDOR";
-}) => {
+export const createUser = async (data: { name: string; email: string; password: string; role?: 'CUSTOMER' | 'VENDOR' }) => {
   const existing = await prisma.user.findUnique({
     where: { email: data.email },
   });
 
   if (existing) {
-    throw new Error("Email already in use");
+    throw new Error('Email already in use');
   }
 
   const hashedPassword = await bcrypt.hash(data.password, 10);
@@ -44,7 +39,7 @@ export const getAllUsers = async () => {
       isEmailVerified: true,
       createdAt: true,
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: 'desc' },
   });
 };
 
@@ -64,7 +59,7 @@ export const getUserById = async (id: string) => {
       },
     },
   });
-  if (!user) throw new ApiError(404, "User not found");
+  if (!user) throw new ApiError(404, 'User not found');
   return user;
 };
 
@@ -77,11 +72,11 @@ export const updateUser = async (
 ) => {
   // only the user themselves can update (admin cannot update others profile)
   if (targetId !== requesterId) {
-    throw new ApiError(403, "You can only update your own profile");
+    throw new ApiError(403, 'You can only update your own profile');
   }
 
   const user = await prisma.user.findUnique({ where: { id: targetId } });
-  if (!user) throw new ApiError(404, "User not found");
+  if (!user) throw new ApiError(404, 'User not found');
 
   return prisma.user.update({
     where: { id: targetId },
@@ -93,16 +88,16 @@ export const updateUser = async (
 // ADMIN — delete any user
 export const deleteUser = async (id: string) => {
   const user = await prisma.user.findUnique({ where: { id } });
-  if (!user) throw new ApiError(404, "User not found");
+  if (!user) throw new ApiError(404, 'User not found');
 
   await prisma.user.delete({ where: { id } });
-  return { message: "User deleted successfully" };
+  return { message: 'User deleted successfully' };
 };
 
 // ADMIN — change user role
 export const changeUserRole = async (id: string, role: Role) => {
   const user = await prisma.user.findUnique({ where: { id } });
-  if (!user) throw new ApiError(404, "User not found");
+  if (!user) throw new ApiError(404, 'User not found');
 
   return prisma.user.update({
     where: { id },

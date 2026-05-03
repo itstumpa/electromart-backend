@@ -1,8 +1,8 @@
-import { Request, Response } from "express";
-import * as UserService from "./users.service";
-import sendResponse from "../../../utils/sendResponse";
-import catchAsync from "../../../utils/catchAsync";
-import { Role } from "@prisma/client";
+import { Request, Response } from 'express';
+import * as UserService from './users.service';
+import sendResponse from '../../../utils/sendResponse';
+import catchAsync from '../../../utils/catchAsync';
+import { Role } from '@prisma/client';
 
 export const createUser = async (req: Request, res: Response) => {
   try {
@@ -18,7 +18,7 @@ export const getAllUsers = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: 200,
     success: true,
-    message: "Users fetched successfully",
+    message: 'Users fetched successfully',
     data: users,
   });
 });
@@ -28,22 +28,17 @@ export const getUserById = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: 200,
     success: true,
-    message: "User fetched successfully",
+    message: 'User fetched successfully',
     data: user,
   });
 });
 
 export const updateUser = catchAsync(async (req: Request, res: Response) => {
-  const user = await UserService.updateUser(
-    req.params.id as string,
-    req.user!.id,
-    req.user!.role,
-    req.body
-  );
+  const user = await UserService.updateUser(req.params.id as string, req.user!.id, req.user!.role, req.body);
   sendResponse(res, {
     statusCode: 200,
     success: true,
-    message: "Profile updated successfully",
+    message: 'Profile updated successfully',
     data: user,
   });
 });
@@ -59,14 +54,11 @@ export const deleteUser = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const changeUserRole = catchAsync(async (req: Request, res: Response) => {
-  const user = await UserService.changeUserRole(
-    req.params.id as string,
-    req.body.role as Role
-  );
+  const user = await UserService.changeUserRole(req.params.id as string, req.body.role as Role);
   sendResponse(res, {
     statusCode: 200,
     success: true,
-    message: "User role updated",
+    message: 'User role updated',
     data: user,
   });
 });
