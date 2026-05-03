@@ -1,11 +1,10 @@
 import { prisma } from '../../../lib/prisma';
 import ApiError from '../../../utils/apiErrors';
-import { IOptions, paginationHelper } from '../../shared/paginationHelper';
-import { notifyStockAlert } from '../stock-alert/stockAlert.service';
 import { getOrSetCache, invalidateCache, invalidateCachePattern } from '../../../utils/cache';
+import { IOptions, paginationHelper } from '../../../utils/paginationHelper';
+import { notifyStockAlert } from '../stock-alert/stockAlert.service';
 
 import { CacheKeys } from '../../../utils/cacheKeys';
-import cloudinary from '../../config/cloudinary';
 import { formatProductResponse } from './product.formatter';
 
 // ─────────────────────────────────────────────

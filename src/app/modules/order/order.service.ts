@@ -1,20 +1,15 @@
 // src/app/modules/order/order.service.ts
-import { OrderStatus } from "@prisma/client";
-import { prisma } from "../../../lib/prisma";
-import ApiError from "../../../utils/apiErrors";
-import { createNotification } from "../notification/notification.service";
-import { sendEmail } from "../../../utils/sendEmail";
-import {
-  orderConfirmedEmail,
-  newOrderVendorEmail,
-  orderStatusUpdateEmail,
-} from "../../../utils/emailTemplates";
-import { validateCoupon } from "../coupon/coupon.service";
-import { IOptions, paginationHelper } from "../../shared/paginationHelper";
-import { addStatusHistory } from "../order-tracking/orderTracking.service";
-import { emailQueue } from "../../../jobs/queues/email.queue";
-import { notificationQueue } from "../../../jobs/queues/notification.queue";
-
+import { OrderStatus } from '@prisma/client';
+import { emailQueue } from '../../../jobs/queues/email.queue';
+import { notificationQueue } from '../../../jobs/queues/notification.queue';
+import { prisma } from '../../../lib/prisma';
+import ApiError from '../../../utils/apiErrors';
+import { newOrderVendorEmail, orderConfirmedEmail, orderStatusUpdateEmail } from '../../../utils/emailTemplates';
+import { IOptions, paginationHelper } from '../../../utils/paginationHelper';
+import { sendEmail } from '../../../utils/sendEmail';
+import { validateCoupon } from '../coupon/coupon.service';
+import { createNotification } from '../notification/notification.service';
+import { addStatusHistory } from '../order-tracking/orderTracking.service';
 
 export const placeOrder = async (customerId: string, couponCode?: string) => {
   // get cart from DB
@@ -28,7 +23,7 @@ export const placeOrder = async (customerId: string, couponCode?: string) => {
   });
 
   if (!cart || cart.items.length === 0) {
-    throw new ApiError(400, "Your cart is empty");
+    throw new ApiError(400, 'Your cart is empty');
   }
 
   // validate stock for all items first
@@ -37,19 +32,13 @@ export const placeOrder = async (customerId: string, couponCode?: string) => {
       throw new ApiError(400, `"${item.product.name}" is no longer available`);
     }
     if (item.product.stock < item.quantity) {
-      throw new ApiError(
-        400,
-        `Only ${item.product.stock} units of "${item.product.name}" left in stock`,
-      );
+      throw new ApiError(400, `Only ${item.product.stock} units of "${item.product.name}" left in stock`);
     }
   }
 
-  const totalAmount = cart.items.reduce(
-    (sum, item) => sum + Number(item.product.price) * item.quantity,
-    0,
-  );
+  const totalAmount = cart.items.reduce((sum, item) => sum + Number(item.product.price) * item.quantity, 0);
 
-    let discount = 0;
+  let discount = 0;
   let couponId: string | undefined;
 
   // apply coupon if provided
@@ -60,7 +49,7 @@ export const placeOrder = async (customerId: string, couponCode?: string) => {
   }
 
   const finalAmount = Number(totalAmount) - discount;
-  
+
   // create order with items
   const order = await prisma.$transaction(async (tx) => {
     const newOrder = await tx.order.create({
@@ -68,7 +57,7 @@ export const placeOrder = async (customerId: string, couponCode?: string) => {
         customerId,
         totalAmount: finalAmount,
         discount,
-        couponId,    
+        couponId,
         items: {
           create: cart.items.map((item) => ({
             productId: item.productId,
@@ -95,40 +84,39 @@ export const placeOrder = async (customerId: string, couponCode?: string) => {
         data: { stock: { decrement: item.quantity } },
       });
     }
-await addStatusHistory(order.id, "PENDING", "Order placed successfully");
+    await addStatusHistory(order.id, 'PENDING', 'Order placed successfully');
     // clear DB cart after order
     await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
     return newOrder;
   });
 
-
-    // get customer info for email
+  // get customer info for email
   const customer = await prisma.user.findUnique({
     where: { id: customerId },
     select: { name: true, email: true },
   });
 
   // 1. notify customer — in-app + email
-await emailQueue.add("order-confirmed", {
-  type: "ORDER_CONFIRMED",
-  to: customer!.email,
-  customerName: customer!.name,
-  orderId: order.id,
-  totalAmount: Number(totalAmount),
-  items: cart.items.map((i) => ({
-    name: i.product.name,
-    quantity: i.quantity,
-    price: Number(i.product.price),
-  })),
-});
+  await emailQueue.add('order-confirmed', {
+    type: 'ORDER_CONFIRMED',
+    to: customer!.email,
+    customerName: customer!.name,
+    orderId: order.id,
+    totalAmount: Number(totalAmount),
+    items: cart.items.map((i) => ({
+      name: i.product.name,
+      quantity: i.quantity,
+      price: Number(i.product.price),
+    })),
+  });
 
-await notificationQueue.add("order-placed", {
-  userId: customerId,
-  title: "Order Placed",
-  message: `Your order #${order.id.slice(-6).toUpperCase()} was placed`,
-  type: "ORDER_PLACED",
-});
+  await notificationQueue.add('order-placed', {
+    userId: customerId,
+    title: 'Order Placed',
+    message: `Your order #${order.id.slice(-6).toUpperCase()} was placed`,
+    type: 'ORDER_PLACED',
+  });
 
   const emailData = orderConfirmedEmail(
     customer!.name,
@@ -143,7 +131,10 @@ await notificationQueue.add("order-placed", {
   await sendEmail({ to: customer!.email, ...emailData });
 
   // 2. notify each unique vendor — in-app + email
-  const vendorMap = new Map<string, { ownerId: string; name: string; email: string; storeName: string; items: { name: string; quantity: number }[] }>();
+  const vendorMap = new Map<
+    string,
+    { ownerId: string; name: string; email: string; storeName: string; items: { name: string; quantity: number }[] }
+  >();
 
   for (const item of cart.items) {
     const store = await prisma.store.findUnique({
@@ -170,38 +161,31 @@ await notificationQueue.add("order-placed", {
   for (const vendor of vendorMap.values()) {
     await createNotification({
       userId: vendor.ownerId,
-      title: "New Order Received",
+      title: 'New Order Received',
       message: `You have a new order with ${vendor.items.length} item(s) in ${vendor.storeName}`,
-      type: "NEW_ORDER_VENDOR",
+      type: 'NEW_ORDER_VENDOR',
     });
 
-
-
     for (const vendor of vendorMap.values()) {
-  await emailQueue.add("new-order-vendor", {
-    type: "NEW_ORDER_VENDOR",
-    to: vendor.email,
-    vendorName: vendor.name,
-    storeName: vendor.storeName,
-    orderId: order.id,
-    items: vendor.items,
-  });
+      await emailQueue.add('new-order-vendor', {
+        type: 'NEW_ORDER_VENDOR',
+        to: vendor.email,
+        vendorName: vendor.name,
+        storeName: vendor.storeName,
+        orderId: order.id,
+        items: vendor.items,
+      });
 
-  await notificationQueue.add("new-order-vendor", {
-    userId: vendor.ownerId,
-    title: "New Order",
-    message: `You have a new order with ${vendor.items.length} item(s) in ${vendor.storeName}`,
+      await notificationQueue.add('new-order-vendor', {
+        userId: vendor.ownerId,
+        title: 'New Order',
+        message: `You have a new order with ${vendor.items.length} item(s) in ${vendor.storeName}`,
 
-    type: "NEW_ORDER_VENDOR",
-  });
-}
+        type: 'NEW_ORDER_VENDOR',
+      });
+    }
 
-    const vendorEmail = newOrderVendorEmail(
-      vendor.name,
-      vendor.storeName,
-      order.id,
-      vendor.items
-    );
+    const vendorEmail = newOrderVendorEmail(vendor.name, vendor.storeName, order.id, vendor.items);
     await sendEmail({ to: vendor.email, ...vendorEmail });
   }
 
@@ -210,8 +194,7 @@ await notificationQueue.add("order-placed", {
 
 // CUSTOMER — get their own orders
 export const getMyOrders = async (customerId: string, options: IOptions) => {
-  const { page, limit, skip, sortBy, sortOrder } =
-    paginationHelper.calculatePagination(options);
+  const { page, limit, skip, sortBy, sortOrder } = paginationHelper.calculatePagination(options);
 
   const where = { customerId };
 
@@ -240,11 +223,7 @@ export const getMyOrders = async (customerId: string, options: IOptions) => {
 };
 
 // CUSTOMER — get single order (own only)
-export const getOrderById = async (
-  orderId: string,
-  customerId: string,
-  isAdmin: boolean,
-) => {
+export const getOrderById = async (orderId: string, customerId: string, isAdmin: boolean) => {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
@@ -258,11 +237,11 @@ export const getOrderById = async (
     },
   });
 
-  if (!order) throw new ApiError(404, "Order not found");
+  if (!order) throw new ApiError(404, 'Order not found');
 
   // customer can only see their own orders
   if (!isAdmin && order.customerId !== customerId) {
-    throw new ApiError(403, "Access denied");
+    throw new ApiError(403, 'Access denied');
   }
 
   return order;
@@ -271,10 +250,10 @@ export const getOrderById = async (
 // CUSTOMER — cancel order (only if PENDING)
 export const cancelOrder = async (orderId: string, customerId: string) => {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
-  if (!order) throw new ApiError(404, "Order not found");
-  if (order.customerId !== customerId) throw new ApiError(403, "Access denied");
+  if (!order) throw new ApiError(404, 'Order not found');
+  if (order.customerId !== customerId) throw new ApiError(403, 'Access denied');
 
-  if (order.status !== "PENDING") {
+  if (order.status !== 'PENDING') {
     throw new ApiError(400, `Cannot cancel — order is already ${order.status}`);
   }
 
@@ -284,14 +263,14 @@ export const cancelOrder = async (orderId: string, customerId: string) => {
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id: orderId },
-      data: { status: "CANCELLED" },
+      data: { status: 'CANCELLED' },
     });
 
     await tx.orderItem.updateMany({
       where: { orderId },
-      data: { status: "CANCELLED" },
+      data: { status: 'CANCELLED' },
     });
-    
+
     for (const item of items) {
       await tx.product.update({
         where: { id: item.productId },
@@ -299,15 +278,15 @@ export const cancelOrder = async (orderId: string, customerId: string) => {
       });
     }
   });
-  await addStatusHistory(orderId, "CANCELLED", "Cancelled by customer");
+  await addStatusHistory(orderId, 'CANCELLED', 'Cancelled by customer');
 
-  return { message: "Order cancelled successfully" };
+  return { message: 'Order cancelled successfully' };
 };
 
 // VENDOR — get orders containing their store items
 export const getVendorOrders = async (ownerId: string) => {
   const store = await prisma.store.findUnique({ where: { ownerId } });
-  if (!store) throw new ApiError(404, "Store not found");
+  if (!store) throw new ApiError(404, 'Store not found');
 
   return prisma.orderItem.findMany({
     where: { storeId: store.id },
@@ -323,34 +302,30 @@ export const getVendorOrders = async (ownerId: string) => {
       },
       product: { select: { id: true, name: true, images: { take: 1 } } },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: 'desc' },
   });
 };
 
-export const updateOrderItemStatus = async (
-  orderItemId: string,
-  ownerId: string,
-  status: OrderStatus
-) => {
+export const updateOrderItemStatus = async (orderItemId: string, ownerId: string, status: OrderStatus) => {
   const store = await prisma.store.findUnique({
     where: { ownerId },
   });
 
-  if (!store) throw new ApiError(404, "Store not found");
+  if (!store) throw new ApiError(404, 'Store not found');
 
   const item = await prisma.orderItem.findUnique({
     where: { id: orderItemId },
   });
 
-  if (!item) throw new ApiError(404, "Order item not found");
+  if (!item) throw new ApiError(404, 'Order item not found');
 
   // make sure this item belongs to vendor's store
   if (item.storeId !== store.id) {
     throw new ApiError(403, "This order item doesn't belong to your store");
   }
 
-  if (item.status === "CANCELLED") {
-    throw new ApiError(400, "Cannot update a cancelled order item");
+  if (item.status === 'CANCELLED') {
+    throw new ApiError(400, 'Cannot update a cancelled order item');
   }
 
   const updated = await prisma.orderItem.update({
@@ -375,16 +350,12 @@ export const updateOrderItemStatus = async (
   if (orderWithCustomer) {
     await createNotification({
       userId: orderWithCustomer.customer.id,
-      title: "Order Status Updated",
+      title: 'Order Status Updated',
       message: `Your order item status changed to ${status}`,
-      type: "ORDER_STATUS_CHANGED",
+      type: 'ORDER_STATUS_CHANGED',
     });
 
-    const statusEmail = orderStatusUpdateEmail(
-      orderWithCustomer.customer.name,
-      item.orderId,
-      status
-    );
+    const statusEmail = orderStatusUpdateEmail(orderWithCustomer.customer.name, item.orderId, status);
 
     await sendEmail({
       to: orderWithCustomer.customer.email,
@@ -393,52 +364,38 @@ export const updateOrderItemStatus = async (
   }
 
   // add item-level status history
-  await addStatusHistory(
-    item.orderId,
-    status,
-    `Item "${item.productId}" marked as ${status} by vendor`
-  );
+  await addStatusHistory(item.orderId, status, `Item "${item.productId}" marked as ${status} by vendor`);
 
   // refetch all items AFTER update
   const allItems = await prisma.orderItem.findMany({
     where: { orderId: item.orderId },
   });
 
-  const allDelivered = allItems.every(
-    (orderItem) => orderItem.status === "DELIVERED"
-  );
+  const allDelivered = allItems.every((orderItem) => orderItem.status === 'DELIVERED');
 
   if (allDelivered) {
     await prisma.order.update({
       where: { id: item.orderId },
-      data: { status: "DELIVERED" },
+      data: { status: 'DELIVERED' },
     });
 
-    await addStatusHistory(
-      item.orderId,
-      "DELIVERED",
-      "All items delivered"
-    );
+    await addStatusHistory(item.orderId, 'DELIVERED', 'All items delivered');
   }
 
   return updated;
 };
 
 // ADMIN — get all orders
-export const getAllOrders = async (
-  query: { status?: string; search?: string },
-  options: IOptions
-) => {
-  const { page, limit, skip, sortBy, sortOrder } =
-    paginationHelper.calculatePagination(options);
+export const getAllOrders = async (query: { status?: string; search?: string }, options: IOptions) => {
+  const { page, limit, skip, sortBy, sortOrder } = paginationHelper.calculatePagination(options);
 
   const where = {
     ...(query.status && { status: query.status as any }),
     ...(query.search && {
       customer: {
         OR: [
-          { name: { contains: query.search, mode: "insensitive" as const } },
-          { email: { contains: query.search, mode: "insensitive" as const } },
+          { name: { contains: query.search, mode: 'insensitive' as const } },
+          { email: { contains: query.search, mode: 'insensitive' as const } },
         ],
       },
     }),

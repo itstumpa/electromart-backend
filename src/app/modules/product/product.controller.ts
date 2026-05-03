@@ -1,14 +1,14 @@
 // src/app/modules/product/product.controller.ts
 import { Request, Response } from 'express';
-import catchAsync from '../../../utils/catchAsync';
-import sendResponse from '../../../utils/sendResponse';
-import * as ProductService from './product.service';
-import { uploadToCloudinary, deleteFromCloudinary } from '../../../utils/uploadToCloudinary';
+import { uploadQueue } from '../../../jobs/queues/upload.queue';
 import { prisma } from '../../../lib/prisma';
 import ApiError from '../../../utils/apiErrors';
-import { IOptions } from '../../shared/paginationHelper';
+import catchAsync from '../../../utils/catchAsync';
+import { IOptions } from '../../../utils/paginationHelper';
 import { addRecentlyViewed, getRecentlyViewed } from '../../../utils/recentlyViewed';
-import { uploadQueue } from '../../../jobs/queues/upload.queue';
+import sendResponse from '../../../utils/sendResponse';
+import { deleteFromCloudinary, uploadToCloudinary } from '../../../utils/uploadToCloudinary';
+import * as ProductService from './product.service';
 
 export const searchProducts = catchAsync(async (req: Request, res: Response) => {
   const { q, categoryId, minPrice, maxPrice, page, limit, sortBy, sortOrder } = req.query;
@@ -40,13 +40,13 @@ export const createProduct = catchAsync(async (req: Request, res: Response) => {
 
   let images: { url: string }[] = [];
 
-req.body.price = Number(req.body.price);
-req.body.stock = Number(req.body.stock);
+  req.body.price = Number(req.body.price);
+  req.body.stock = Number(req.body.stock);
 
   if (files?.length) {
     const uploaded = await Promise.all(
       files.map(async (file) => {
-        const result: any = await uploadToCloudinary(file.buffer, "products");
+        const result: any = await uploadToCloudinary(file.buffer, 'products');
         return { url: result.secure_url };
       })
     );
@@ -54,10 +54,7 @@ req.body.stock = Number(req.body.stock);
     images = uploaded;
   }
 
-  const variants =
-    typeof req.body.variants === "string"
-      ? JSON.parse(req.body.variants)
-      : req.body.variants;
+  const variants = typeof req.body.variants === 'string' ? JSON.parse(req.body.variants) : req.body.variants;
 
   const product = await ProductService.createProduct(req.user!.id, {
     ...req.body,
@@ -68,7 +65,7 @@ req.body.stock = Number(req.body.stock);
   sendResponse(res, {
     statusCode: 201,
     success: true,
-    message: "Product created successfully",
+    message: 'Product created successfully',
     data: product,
   });
 });

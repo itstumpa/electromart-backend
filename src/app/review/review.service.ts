@@ -1,8 +1,8 @@
 import { prisma } from '../../lib/prisma';
 import ApiError from '../../utils/apiErrors';
-import { getOrSetCache, invalidateCachePattern, invalidateCache } from '../../utils/cache';
+import { getOrSetCache, invalidateCachePattern } from '../../utils/cache';
 import { CacheKeys } from '../../utils/cacheKeys';
-import { IOptions, paginationHelper } from '../shared/paginationHelper';
+import { IOptions, paginationHelper } from '../../utils/paginationHelper';
 
 // ─────────────────────────────────────────────
 // CUSTOMER — create review

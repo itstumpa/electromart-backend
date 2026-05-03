@@ -1,9 +1,9 @@
 // src/app/modules/review/review.controller.ts
 import { Request, Response } from 'express';
 import catchAsync from '../../utils/catchAsync';
+import { IOptions } from '../../utils/paginationHelper';
 import sendResponse from '../../utils/sendResponse';
 import * as ReviewService from './review.service';
-import { IOptions } from '../shared/paginationHelper';
 
 export const createReview = catchAsync(async (req: Request, res: Response) => {
   const review = await ReviewService.createReview(req.user!.id, req.params.productId as string, req.body);
