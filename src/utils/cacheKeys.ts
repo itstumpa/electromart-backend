@@ -8,6 +8,7 @@ export const CacheKeys = {
   SINGLE_PRODUCT: (id: string) => `products:${id}`,
   SEARCH_PRODUCTS: (query: string) => `products:search:${query}`,
   SEARCH_SUGGESTIONS: (q: string) => `products:suggestions:${q}`,
+  PRODUCT_SLUG: (slug: string) => `product:slug:${slug}`,
 
   // stores
   ALL_STORES: "stores:all",

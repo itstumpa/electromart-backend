@@ -9,6 +9,7 @@ import { addRecentlyViewed, getRecentlyViewed } from '../../../utils/recentlyVie
 import sendResponse from '../../../utils/sendResponse';
 import { deleteFromCloudinary, uploadToCloudinary } from '../../../utils/uploadToCloudinary';
 import * as ProductService from './product.service';
+import { slugGenerator } from '../../../utils/generateUniqueSlug';
 
 export const searchProducts = catchAsync(async (req: Request, res: Response) => {
   const { q, categoryId, minPrice, maxPrice, page, limit, sortBy, sortOrder } = req.query;
@@ -37,12 +38,12 @@ export const getSearchSuggestions = catchAsync(async (req: Request, res: Respons
 
 export const createProduct = catchAsync(async (req: Request, res: Response) => {
   const files = (req.files as Express.Multer.File[]) || [];
-
+  const slug = await slugGenerator(req.body.name, prisma.product  as any);
+  
   let images: { url: string }[] = [];
-
   req.body.price = Number(req.body.price);
   req.body.stock = Number(req.body.stock);
-
+  
   if (files?.length) {
     const uploaded = await Promise.all(
       files.map(async (file) => {
@@ -50,18 +51,18 @@ export const createProduct = catchAsync(async (req: Request, res: Response) => {
         return { url: result.secure_url };
       })
     );
-
     images = uploaded;
   }
-
+  
   const variants = typeof req.body.variants === 'string' ? JSON.parse(req.body.variants) : req.body.variants;
-
+  
   const product = await ProductService.createProduct(req.user!.id, {
     ...req.body,
+    slug,
     images,
     variants,
   });
-
+  
   sendResponse(res, {
     statusCode: 201,
     success: true,
@@ -69,6 +70,15 @@ export const createProduct = catchAsync(async (req: Request, res: Response) => {
     data: product,
   });
 });
+
+export const getProductBySlug = catchAsync(async (req: Request, res: Response) => {
+  const product = await ProductService.getProductBySlug(req.params.slug as string);
+  if (req.user?.id) {
+    await addRecentlyViewed(req.user.id, product.id).catch(() => {});
+  }
+  sendResponse(res, { statusCode: 200, success: true, message: 'Product fetched successfully', data: product });
+});
+
 
 export const getAllProducts = catchAsync(async (req: Request, res: Response) => {
   const { categoryId, storeId, search, minPrice, maxPrice, page, limit, sortBy, sortOrder } = req.query;

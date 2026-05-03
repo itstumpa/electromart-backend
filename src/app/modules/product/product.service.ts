@@ -48,6 +48,8 @@ export const createProduct = async (
   return formatProductResponse(product);
 };
 
+
+
 // ─────────────────────────────────────────────
 // PUBLIC — get all products (cached)
 // ─────────────────────────────────────────────
@@ -108,6 +110,30 @@ export const getAllProducts = async (
         },
         data,
       };
+    }
+  );
+};
+
+
+// get products by slug 
+
+export const getProductBySlug = async (slug: string) => {
+  return getOrSetCache(
+    CacheKeys.PRODUCT_SLUG(slug),
+    600, // 10 min cache
+    async () => {
+      const product = await prisma.product.findUnique({
+        where: { slug },
+        include: {
+          images: true,
+          variants: true,
+          category: true,
+          store: { select: { id: true, name: true, slug: true } },
+        },
+      });
+
+      if (!product) throw new ApiError(404, 'Product not found');
+      return product;
     }
   );
 };

@@ -11,11 +11,13 @@ type ProductWithRelations = Prisma.ProductGetPayload<{
 export const formatProductResponse = (product: ProductWithRelations) => ({
   id: product.id,
   name: product.name,
+  slug: product.slug,
   description: product.description,
   price: product.price,
   stock: product.stock,
   isActive: product.isActive,
   createdAt: product.createdAt,
+
 
   images: product.images.map((img) => ({
     id: img.id,
