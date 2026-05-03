@@ -36,23 +36,39 @@ export const getSearchSuggestions = catchAsync(async (req: Request, res: Respons
 });
 
 export const createProduct = catchAsync(async (req: Request, res: Response) => {
-  const file = req.file;
+  const files = (req.files as Express.Multer.File[]) || [];
 
-  let imageUrl = '';
-  let imagePublicId = '';
+  let images: { url: string }[] = [];
 
-  if (file) {
-    const result = await uploadToCloudinary(file.buffer, 'products');
-    imageUrl = result.secure_url;
-    imagePublicId = result.public_id;
+req.body.price = Number(req.body.price);
+req.body.stock = Number(req.body.stock);
+
+  if (files?.length) {
+    const uploaded = await Promise.all(
+      files.map(async (file) => {
+        const result: any = await uploadToCloudinary(file.buffer, "products");
+        return { url: result.secure_url };
+      })
+    );
+
+    images = uploaded;
   }
 
-  const product = await ProductService.createProduct(req.user!.id, { ...req.body, imageUrl, imagePublicId });
+  const variants =
+    typeof req.body.variants === "string"
+      ? JSON.parse(req.body.variants)
+      : req.body.variants;
+
+  const product = await ProductService.createProduct(req.user!.id, {
+    ...req.body,
+    images,
+    variants,
+  });
 
   sendResponse(res, {
     statusCode: 201,
     success: true,
-    message: 'Product created successfully',
+    message: "Product created successfully",
     data: product,
   });
 });

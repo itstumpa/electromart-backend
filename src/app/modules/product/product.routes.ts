@@ -8,6 +8,7 @@ import { createProductSchema, updateProductSchema } from './product.validation';
 import { upload } from '../../middlewares/upload';
 import * as ProductImageController from './product.controller';
 import { searchLimiter } from '../../middlewares/rateLimiter';
+import { parseData } from '../../middlewares/parser';
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.get('/:id', ProductController.getProductById);
 router.get('/recently-viewed', authenticate, ProductController.getRecentlyViewedProducts);
 
 // VENDOR only
-router.post('/', authenticate, authorize('VENDOR'), validate(createProductSchema), ProductController.createProduct);
+router.post('/', authenticate,  authorize('VENDOR'),  upload.array("files", 10), parseData, validate(createProductSchema), ProductController.createProduct);
 router.get('/my/products', authenticate, authorize('VENDOR', 'CUSTOMER'), ProductController.getMyProducts);
 router.patch('/:id', authenticate, authorize('VENDOR', 'ADMIN'), validate(updateProductSchema), ProductController.updateProduct);
 

@@ -48,37 +48,6 @@ export const createProduct = async (
   return product;
 };
 
-export const uploadToCloudinary = async (file: Express.Multer.File) => {
-  return new Promise((resolve, reject) => {
-    let resource_type: 'image' | 'video' | 'raw' = 'image';
-    let folder = 'general';
-
-    if (file.mimetype.startsWith('image/')) {
-      folder = 'images';
-      resource_type = 'image';
-    } else if (file.mimetype === 'application/pdf') {
-      folder = 'documents';
-      resource_type = 'raw';
-    } else if (file.mimetype.startsWith('video/')) {
-      folder = 'videos';
-      resource_type = 'video';
-    }
-
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder,
-        resource_type,
-      },
-      (error, result) => {
-        if (error) return reject(error);
-        resolve(result);
-      }
-    );
-
-    stream.end(file.buffer);
-  });
-};
-
 // ─────────────────────────────────────────────
 // PUBLIC — get all products (cached)
 // ─────────────────────────────────────────────

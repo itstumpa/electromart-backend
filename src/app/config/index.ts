@@ -29,6 +29,11 @@ const config = {
   accessExpires: process.env.JWT_ACCESS_EXPIRES || "15m",
   refreshExpires: process.env.JWT_REFRESH_EXPIRES || "7d",
 
+
+  api_key: process.env.CLOUDINARY_API_KEY,
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+
 //   email_user: process.env.EMAIL_USER,
 //   email_pass: process.env.EMAIL_PASS,
 //   email_host: process.env.EMAIL_HOST,
