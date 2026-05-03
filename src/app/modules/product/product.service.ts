@@ -6,6 +6,7 @@ import { getOrSetCache, invalidateCache, invalidateCachePattern } from '../../..
 
 import { CacheKeys } from '../../../utils/cacheKeys';
 import cloudinary from '../../config/cloudinary';
+import { formatProductResponse } from './product.formatter';
 
 // ─────────────────────────────────────────────
 // VENDOR — create product
@@ -45,7 +46,7 @@ export const createProduct = async (
   // invalidate product cache
   await invalidateCachePattern('products:*');
 
-  return product;
+  return formatProductResponse(product);
 };
 
 // ─────────────────────────────────────────────
