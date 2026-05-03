@@ -38,12 +38,12 @@ export const getSearchSuggestions = catchAsync(async (req: Request, res: Respons
 
 export const createProduct = catchAsync(async (req: Request, res: Response) => {
   const files = (req.files as Express.Multer.File[]) || [];
-  const slug = await slugGenerator(req.body.name, prisma.product  as any);
-  
+  const slug = await slugGenerator(req.body.name, prisma.product as any);
+
   let images: { url: string }[] = [];
   req.body.price = Number(req.body.price);
   req.body.stock = Number(req.body.stock);
-  
+
   if (files?.length) {
     const uploaded = await Promise.all(
       files.map(async (file) => {
@@ -53,16 +53,16 @@ export const createProduct = catchAsync(async (req: Request, res: Response) => {
     );
     images = uploaded;
   }
-  
+
   const variants = typeof req.body.variants === 'string' ? JSON.parse(req.body.variants) : req.body.variants;
-  
+
   const product = await ProductService.createProduct(req.user!.id, {
     ...req.body,
     slug,
     images,
     variants,
   });
-  
+
   sendResponse(res, {
     statusCode: 201,
     success: true,
@@ -78,7 +78,6 @@ export const getProductBySlug = catchAsync(async (req: Request, res: Response) =
   }
   sendResponse(res, { statusCode: 200, success: true, message: 'Product fetched successfully', data: product });
 });
-
 
 export const getAllProducts = catchAsync(async (req: Request, res: Response) => {
   const { categoryId, storeId, search, minPrice, maxPrice, page, limit, sortBy, sortOrder } = req.query;
@@ -112,8 +111,42 @@ export const getProductById = catchAsync(async (req: Request, res: Response) => 
 });
 
 export const updateProduct = catchAsync(async (req: Request, res: Response) => {
-  const product = await ProductService.updateProduct(req.params.id as string, req.user!.id, req.body);
-  sendResponse(res, { statusCode: 200, success: true, message: 'Product updated successfully', data: product });
+  const files = (req.files as Express.Multer.File[]) || [];
+
+  // 1. parse JSON body (from form-data)
+  const body = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
+
+  // 2. normalize removeImageIds
+  const removeImageIds = typeof body.removeImageIds === 'string' ? JSON.parse(body.removeImageIds) : body.removeImageIds || [];
+
+  // 3. upload new images
+  let newImages: { url: string; publicId: string }[] = [];
+
+  if (files.length) {
+    newImages = await Promise.all(
+      files.map(async (file) => {
+        const result: any = await uploadToCloudinary(file.buffer, 'products');
+        return {
+          url: result.secure_url,
+          publicId: result.public_id,
+        };
+      })
+    );
+  }
+
+  // 4. call service with CLEAN DATA
+  const product = await ProductService.updateProduct(req.params.id as string, req.user!.id, {
+    ...body,
+    removeImageIds,
+    newImages,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Product updated successfully',
+    data: product,
+  });
 });
 
 export const deleteProduct = catchAsync(async (req: Request, res: Response) => {

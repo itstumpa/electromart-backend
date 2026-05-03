@@ -6,6 +6,7 @@ import { notifyStockAlert } from '../stock-alert/stockAlert.service';
 
 import { CacheKeys } from '../../../utils/cacheKeys';
 import { formatProductResponse } from './product.formatter';
+import cloudinary from '../../config/cloudinary';
 
 // ─────────────────────────────────────────────
 // VENDOR — create product
@@ -237,30 +238,67 @@ export const getSearchSuggestions = async (q: string) => {
 // ─────────────────────────────────────────────
 // UPDATE PRODUCT (invalidate cache)
 // ─────────────────────────────────────────────
-export const updateProduct = async (productId: string, ownerId: string, data: any) => {
+export const updateProduct = async (
+  productId: string,
+  ownerId: string,
+  data: any
+) => {
   const product = await prisma.product.findUnique({
     where: { id: productId },
-    include: { store: true },
+    include: { store: true, images: true, variants: true },
   });
 
-  if (!product) throw new ApiError(404, 'Product not found');
+  if (!product) throw new ApiError(404, "Product not found");
 
   if (product.store.ownerId !== ownerId) {
-    throw new ApiError(403, 'You can only update your own products');
+    throw new ApiError(403, "You can only update your own products");
   }
 
+  const removeImageIds: string[] = data.removeImageIds || [];
+  const newImages = data.newImages || [];
+
+  // 1. DELETE ONLY SELECTED IMAGES
+  if (removeImageIds.length) {
+    await Promise.all(
+      removeImageIds.map((id) =>
+        cloudinary.uploader.destroy(id)
+      )
+    );
+  }
+
+  // 2. FILTER REMAINING IMAGES
+  const remainingImages = product.images.filter(
+    (img) => !removeImageIds.includes(img.publicId as string)
+  );
+
+  // 3. MERGE NEW IMAGES
+  const finalImages = [...remainingImages, ...newImages];
+
+  // 4. UPDATE PRODUCT (ONCE ONLY)
   const updated = await prisma.product.update({
     where: { id: productId },
-    data,
+    data: {
+      ...data,
+      images: {
+        deleteMany: {},
+        create: finalImages,
+      },
+    },
+    include: { images: true, variants: true },
   });
 
-  // notify only when stock was previously empty and now restocked
-  if (typeof data.stock === 'number' && product.stock <= 0 && data.stock > 0) {
+  // 5. STOCK ALERT
+  if (
+    typeof data.stock === "number" &&
+    product.stock <= 0 &&
+    data.stock > 0
+  ) {
     await notifyStockAlert(productId);
   }
 
+  // 6. CACHE CLEANUP
   await invalidateCache(CacheKeys.SINGLE_PRODUCT(productId));
-  await invalidateCachePattern('products:*');
+  await invalidateCachePattern("products:*");
 
   return updated;
 };
