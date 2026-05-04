@@ -1,42 +1,34 @@
-export const slugGenerator = async <T extends { slug: string }>(
+import { customAlphabet } from "nanoid";
+
+const nano = customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 5);
+
+type SlugModel = {
+  findUnique: (args: {
+    where: { slug: string };
+    select: { slug: true };
+  }) => Promise<{ slug: string } | null>;
+};
+
+export const generateUniqueSlug = async (
   text: string,
-  model: {
-    findMany: (args: any) => Promise<T[]>;
-  }
+  model: SlugModel
 ): Promise<string> => {
   const baseSlug = text
     .trim()
     .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/(^-|-$)/g, '');
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/(^-|-$)/g, "");
 
-  // 🔥 single DB call
-  const existing = await model.findMany({
-    where: {
-      slug: {
-        startsWith: baseSlug,
-      },
-    },
-    select: {
-      slug: true,
-    },
+  const exists = await model.findUnique({
+    where: { slug: baseSlug },
+    select: { slug: true },
   });
 
-  if (existing.length === 0) return baseSlug;
+  if (!exists) return baseSlug;
 
-  // extract suffix numbers
-  const suffixes = existing
-    .map((p) => p.slug.replace(baseSlug, ''))
-    .map((s) => s.replace('-', ''))
-    .filter(Boolean)
-    .map((s) => Number(s))
-    .filter((n) => !isNaN(n));
-
-  const next = suffixes.length ? Math.max(...suffixes) + 1 : 1;
-
-  return `${baseSlug}-${next}`;
+  return `${baseSlug}-${nano()}`;
 };

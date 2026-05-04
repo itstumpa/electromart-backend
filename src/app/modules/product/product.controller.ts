@@ -9,7 +9,7 @@ import { addRecentlyViewed, getRecentlyViewed } from '../../../utils/recentlyVie
 import sendResponse from '../../../utils/sendResponse';
 import { deleteFromCloudinary, uploadToCloudinary } from '../../../utils/uploadToCloudinary';
 import * as ProductService from './product.service';
-import { slugGenerator } from '../../../utils/generateUniqueSlug';
+import { generateUniqueSlug } from '../../../utils/generateUniqueSlug';
 
 export const searchProducts = catchAsync(async (req: Request, res: Response) => {
   const { q, categoryId, minPrice, maxPrice, page, limit, sortBy, sortOrder } = req.query;
@@ -38,7 +38,7 @@ export const getSearchSuggestions = catchAsync(async (req: Request, res: Respons
 
 export const createProduct = catchAsync(async (req: Request, res: Response) => {
   const files = (req.files as Express.Multer.File[]) || [];
-  const slug = await slugGenerator(req.body.name, prisma.product as any);
+  const slug = await generateUniqueSlug(req.body.name, prisma.product as any);
 
   let images: { url: string }[] = [];
   req.body.price = Number(req.body.price);
