@@ -1,5 +1,6 @@
 import { customAlphabet } from "nanoid";
 
+// nanoId based slug 
 const nano = customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 5);
 
 type SlugModel = {
