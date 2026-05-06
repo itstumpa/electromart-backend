@@ -339,3 +339,91 @@ export const getMyProducts = async (ownerId: string) => {
     orderBy: { createdAt: 'desc' },
   });
 };
+
+
+// PUBLIC — featured products
+export const getFeaturedProducts = async () => {
+  return getOrSetCache(
+    CacheKeys.FEATURED_PRODUCTS,
+    3600,
+    () =>
+      prisma.product.findMany({
+        where: { 
+          isActive: true,
+          isFeatured: true, // add this field to Product model
+        },
+        take: 12,
+        orderBy: { createdAt: "desc" },
+        include: {
+          images: { take: 1 },
+          category: { select: { name: true, slug: true } },
+          store: { select: { id: true, name: true } },
+        },
+      })
+  );
+};
+
+// PUBLIC — bestsellers (by order count)
+export const getBestsellers = async () => {
+  return getOrSetCache(
+    CacheKeys.BESTSELLERS,
+    1800, // 30 min
+    () =>
+      prisma.product.findMany({
+        where: { isActive: true },
+        take: 12,
+        orderBy: { orderCount: "desc" }, // track this in OrderItem
+        include: {
+          images: { take: 1 },
+          category: { select: { name: true, slug: true } },
+          store: { select: { id: true, name: true } },
+        },
+      })
+  );
+};
+
+// PUBLIC — new arrivals
+export const getNewArrivals = async () => {
+  return getOrSetCache(
+    CacheKeys.NEW_ARRIVALS,
+    1800,
+    () =>
+      prisma.product.findMany({
+        where: { isActive: true },
+        take: 12,
+        orderBy: { createdAt: "desc" },
+        include: {
+          images: { take: 1 },
+          category: { select: { name: true, slug: true } },
+          store: { select: { id: true, name: true } },
+        },
+      })
+  );
+};
+
+// PUBLIC — recommendations based on product
+export const getRecommendations = async (productId: string) => {
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { categoryId: true },
+  });
+
+  if (!product) {
+    throw new ApiError(404, "Product not found");
+  }
+
+  return prisma.product.findMany({
+    where: {
+      isActive: true,
+      categoryId: product.categoryId,
+      NOT: { id: productId }, // exclude current product
+    },
+    take: 8,
+    orderBy: { orderCount: "desc" }, // prioritize popular items
+    include: {
+      images: { take: 1 },
+      category: { select: { name: true, slug: true } },
+      store: { select: { id: true, name: true } },
+    },
+  });
+};

@@ -24,6 +24,11 @@ export const updateCategory = catchAsync(async (req: Request, res: Response) => 
   sendResponse(res, { statusCode: 200, success: true, message: "Category updated", data: category });
 });
 
+export const getFeaturedCategories = catchAsync(async (req: Request, res: Response) => {
+  const categories = await CategoryService.getFeaturedCategories();
+  sendResponse(res, { statusCode: 200, success: true, message: "Featured categories fetched", data: categories });
+});
+
 export const deleteCategory = catchAsync(async (req: Request, res: Response) => {
   const result = await CategoryService.deleteCategory(req.params.id as string);
   sendResponse(res, { statusCode: 200, success: true, message: result.message, data: null });

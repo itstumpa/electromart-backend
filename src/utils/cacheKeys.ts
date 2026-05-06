@@ -2,6 +2,7 @@
 export const CacheKeys = {
   // categories
   ALL_CATEGORIES: "categories:all",
+  FEATURED_CATEGORIES: "categories:featured",
 
   // products
   ALL_PRODUCTS: (query: string) => `products:list:${query}`,
@@ -10,6 +11,7 @@ export const CacheKeys = {
   SEARCH_SUGGESTIONS: (q: string) => `products:suggestions:${q}`,
   PRODUCT_SLUG: (slug: string) => `product:slug:${slug}`,
 
+  
   // stores
   ALL_STORES: "stores:all",
   SINGLE_STORE: (id: string) => `stores:${id}`,

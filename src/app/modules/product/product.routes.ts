@@ -14,11 +14,16 @@ const router = Router();
 
 // PUBLIC
 router.get('/', ProductController.getAllProducts);
-router.get('/:slug', ProductController.getProductBySlug);
+router.get("/featured", ProductController.getFeaturedProducts);
+router.get("/bestsellers", ProductController.getBestsellers);
+router.get("/new-arrivals", ProductController.getNewArrivals);
+router.get("/recommendations/:id", ProductController.getRecommendations);
+router.get('/recently-viewed', authenticate, ProductController.getRecentlyViewedProducts);
 router.get('/search', searchLimiter, ProductController.searchProducts);
 router.get('/search/suggestions', ProductController.getSearchSuggestions);
+router.get('/:slug', ProductController.getProductBySlug);
 router.get('/:id', ProductController.getProductById);
-router.get('/recently-viewed', authenticate, ProductController.getRecentlyViewedProducts);
+
 
 // VENDOR only
 router.post(

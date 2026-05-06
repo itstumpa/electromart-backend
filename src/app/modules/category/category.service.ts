@@ -110,6 +110,24 @@ export const updateCategory = async (id: string, name: string) => {
   return updatedCategory;
 };
 
+// PUBLIC — get featured
+export const getFeaturedCategories = async () => {
+  return getOrSetCache(
+    CacheKeys.FEATURED_CATEGORIES, // add this to your CacheKeys enum
+    3600,
+    () =>
+      prisma.category.findMany({
+        where: { isFeatured: true },
+        orderBy: { name: "asc" },
+        include: {
+          _count: {
+            select: { products: true },
+          },
+        },
+      })
+  );
+};
+
 // ADMIN — delete
 export const deleteCategory = async (id: string) => {
   const category = await prisma.category.findUnique({

@@ -27,7 +27,7 @@ app.use(hpp());
 
 app.use(
   cors({
-    origin: config.frontend_url,
+    origin: config.client_url,
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE", "PUT"],
     allowedHeaders: ["Content-Type", "Authorization"],

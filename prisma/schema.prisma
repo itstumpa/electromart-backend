@@ -154,6 +154,7 @@ model Category {
   id        String    @id @default(cuid())
   name      String    @unique
   slug      String    @unique
+  isFeatured Boolean? @default(false)
   products  Product[]
   createdAt DateTime  @default(now())
 }
@@ -161,7 +162,7 @@ model Category {
 model Product {
   id          String           @id @default(cuid())
   name        String
-  slug        String            @unique
+  slug        String?            @unique
   description String?
   price       Decimal
   stock       Int              @default(0)

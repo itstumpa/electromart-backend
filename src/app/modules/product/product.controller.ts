@@ -234,3 +234,23 @@ export const getRecentlyViewedProducts = catchAsync(async (req: Request, res: Re
   const data = await getRecentlyViewed(req.user!.id);
   sendResponse(res, { statusCode: 200, success: true, message: 'Recently viewed', data });
 });
+
+export const getFeaturedProducts = catchAsync(async (req: Request, res: Response) => {
+  const products = await ProductService.getFeaturedProducts();
+  sendResponse(res, { statusCode: 200, success: true, message: 'Featured products', data: products });
+});
+
+export const getBestsellers = catchAsync(async (req: Request, res: Response) => {
+  const products = await ProductService.getBestsellers();
+  sendResponse(res, { statusCode: 200, success: true, message: 'Bestsellers', data: products });
+});
+
+export const getNewArrivals = catchAsync(async (req: Request, res: Response) => {
+  const products = await ProductService.getNewArrivals();
+  sendResponse(res, { statusCode: 200, success: true, message: 'New arrivals', data: products });
+});
+
+export const getRecommendations = catchAsync(async (req: Request, res: Response) => {
+  const products = await ProductService.getRecommendations(req.params.id as string);
+  sendResponse(res, { statusCode: 200, success: true, message: 'Recommendations', data: products });
+});
