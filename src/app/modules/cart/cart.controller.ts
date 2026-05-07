@@ -10,8 +10,8 @@ export const viewCart = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const addToCart = catchAsync(async (req: Request, res: Response) => {
-  const { productId, quantity } = req.body;
-  const cart = await CartService.addToCart(req.user!.id, productId, quantity);
+  const { productId, quantity, variantId } = req.body;
+  const cart = await CartService.addToCart(req.user!.id, productId, quantity, variantId);
   sendResponse(res, { statusCode: 200, success: true, message: "Item added to cart", data: cart });
 });
 
@@ -19,13 +19,14 @@ export const updateCartItem = catchAsync(async (req: Request, res: Response) => 
   const cart = await CartService.updateCartItem(
     req.user!.id,
     req.params.productId as string,
-    req.body.quantity
+    req.body.quantity,
+    req.body.variantId,
   );
   sendResponse(res, { statusCode: 200, success: true, message: "Cart updated", data: cart });
 });
 
 export const removeFromCart = catchAsync(async (req: Request, res: Response) => {
-  const cart = await CartService.removeFromCart(req.user!.id, req.params.productId as string);
+  const cart = await CartService.removeFromCart(req.user!.id, req.params.productId as string, req.body.variantId);
   sendResponse(res, { statusCode: 200, success: true, message: "Item removed", data: cart });
 });
 
