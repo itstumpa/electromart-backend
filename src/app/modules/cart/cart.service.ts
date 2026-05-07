@@ -1,6 +1,7 @@
 // src/app/modules/cart/cart.service.ts
 import { prisma } from "../../../lib/prisma";
 import ApiError from "../../../utils/apiErrors";
+import { formatCartItemResponse } from "./formatter/formatter.viewCart";
 
 // ── Helper: get or create cart for user ──────────────────────────────────────
 const getOrCreateCart = async (userId: string) => {
@@ -58,7 +59,36 @@ const getFullCart = async (userId: string) => {
 
 // ── VIEW cart ─────────────────────────────────────────────────────────────────
 export const viewCart = async (userId: string) => {
-  return getFullCart(userId);
+  const cart = await prisma.cart.findUnique({
+    where: { userId },
+    include: {
+      items: {
+        include: {
+          product: {
+            include: {
+              images: true,
+              store: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                },
+              },
+            },
+          },
+          variant: true, // ✅ CORRECT PLACE
+        },
+      },
+    },
+  });
+
+  if (!cart) {
+    return { items: [] };
+  }
+
+  return {
+    items: cart.items.map(formatCartItemResponse),
+  };
 };
 
 // ── ADD item ──────────────────────────────────────────────────────────────────
