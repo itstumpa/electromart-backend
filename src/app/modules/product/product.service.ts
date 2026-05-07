@@ -5,8 +5,9 @@ import { paginationHelper, type IPaginationOptions as IOptions } from '../../../
 import { notifyStockAlert } from '../stock-alert/stockAlert.service';
 
 import { CacheKeys } from '../../../utils/cacheKeys';
-import { formatProductListResponse, formatProductResponse } from './product.formatter';
+import { formatProductDetailResponse, formatProductListResponse, formatProductResponse } from './product.formatter';
 import cloudinary from '../../config/cloudinary';
+import { generateUniqueSlug } from '../../../utils/generateUniqueSlug';
 
 
 type ProductQuery = {
@@ -18,6 +19,11 @@ type ProductQuery = {
 };
 
 type ProductOptions = IOptions;
+
+type ProductTag = {
+  id: string;
+  name: string;
+}
 // ─────────────────────────────────────────────
 // VENDOR — create product
 // ─────────────────────────────────────────────
@@ -41,11 +47,14 @@ export const createProduct = async (
   });
   if (!category) throw new ApiError(404, 'Category not found');
 
+  const slug = await generateUniqueSlug(data.name, prisma.product);
+
   const { images, variants, ...productData } = data;
 
   const product = await prisma.product.create({
     data: {
       ...productData,
+      slug,
       storeId: store.id,
       images: images ? { create: images } : undefined,
       variants: variants ? { create: variants } : undefined,
@@ -127,7 +136,7 @@ const [data, total] = await Promise.all([
 export const getProductBySlug = async (slug: string) => {
   return getOrSetCache(
     CacheKeys.PRODUCT_SLUG(slug),
-    600, // 10 min cache
+    600,
     async () => {
       const product = await prisma.product.findUnique({
         where: { slug },
@@ -135,12 +144,23 @@ export const getProductBySlug = async (slug: string) => {
           images: true,
           variants: true,
           category: true,
-          store: { select: { id: true, name: true, slug: true } },
+          brand: true,
+          tags: {
+            include: {
+              tag: true,
+            },
+          },
+          specifications: true,
+          store: {
+            select: { id: true, name: true, slug: true },
+          },
         },
       });
+      
+      if (!product) throw new ApiError(404, "Product not found");
+      if (!product.slug) throw new ApiError(500, "Product slug missing");
 
-      if (!product) throw new ApiError(404, 'Product not found');
-      return product;
+      return formatProductDetailResponse(product);
     }
   );
 };

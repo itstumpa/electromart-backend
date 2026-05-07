@@ -164,7 +164,7 @@ model Category {
 model Product {
   id          String           @id @default(cuid())
   name        String
-  slug        String?            @unique
+  slug        String            @unique
   description String?
   price       Decimal
   originalPrice Decimal?
@@ -176,6 +176,8 @@ model Product {
   images      ProductImage[]
   variants    ProductVariant[]
   isActive    Boolean          @default(true)
+  featured Boolean @default(false)
+bestseller Boolean @default(false)
 rating        Float @default(0)
   reviewCount   Int            @default(0)
    brandId       String?
@@ -203,6 +205,7 @@ model Brand{
   id        String    @id @default(cuid())
   name      String    @unique
   products  Product[]
+  slug String @unique
 
 }
 
