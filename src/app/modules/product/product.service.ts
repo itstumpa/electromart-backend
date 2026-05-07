@@ -5,7 +5,7 @@ import { paginationHelper, type IPaginationOptions as IOptions } from '../../../
 import { notifyStockAlert } from '../stock-alert/stockAlert.service';
 
 import { CacheKeys } from '../../../utils/cacheKeys';
-import { formatProductDetailResponse, formatProductListResponse, formatProductResponse } from './product.formatter';
+import { formatProductCardResponse, formatProductDetailResponse, formatProductListResponse, formatProductResponse } from './product.formatter';
 import cloudinary from '../../config/cloudinary';
 import { generateUniqueSlug } from '../../../utils/generateUniqueSlug';
 
@@ -103,17 +103,21 @@ export const getAllProducts = async (
 const [data, total] = await Promise.all([
   prisma.product.findMany({
     where,
+
     include: {
-      images: true,
-      variants: true,
-      category: true,
+      images: {
+        take: 1,
+      },
+
       brand: true,
-      store: { select: { id: true, name: true, slug: true } },
     },
+
     orderBy: { [sortBy]: sortOrder },
+
     skip,
     take: limit,
   }),
+
   prisma.product.count({ where }),
 ]);
 
@@ -124,7 +128,7 @@ const [data, total] = await Promise.all([
           total,
           totalPages: Math.ceil(total / limit),
         },
-        data: data.map(formatProductListResponse),
+data: data.map(formatProductCardResponse),
       };
     }
   );

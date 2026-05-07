@@ -93,6 +93,13 @@ type ProductDetailDTO = {
   createdAt: Date;
 };
 
+type ProductCardWithRelations = Prisma.ProductGetPayload<{
+  include: {
+    images: true;
+    brand: true;
+  };
+}>;
+
 
 export const formatProductResponse = (product: ProductWithRelations) => ({
   id: product.id,
@@ -163,6 +170,7 @@ export const formatProductDetailResponse = (product: ProductDetailWithRelations 
   featured: product.featured,
   bestseller: product.bestseller,
   tags: product.tags.map(t => t.tag.name),
+  image: product.images?.[0]?.url ?? null,
 
   images: product.images?.map((img) => ({ id: img.id, url: img.url })) || [],
 
@@ -196,4 +204,29 @@ store: {
 },
 
   createdAt: product.createdAt,
+});
+
+export const formatProductCardResponse = (
+  product: ProductCardWithRelations
+) => ({
+  id: product.id,
+
+  slug: product.slug ?? "",
+
+  name: product.name,
+
+  image: product.images?.[0]?.url ?? null,
+
+  price: product.price,
+  originalPrice: product.originalPrice,
+
+  stock: product.stock,
+
+  rating: product.rating,
+  reviewCount: product.reviewCount,
+
+  brandName: product.brand?.name ?? null,
+
+  featured: product.featured,
+  bestseller: product.bestseller,
 });
