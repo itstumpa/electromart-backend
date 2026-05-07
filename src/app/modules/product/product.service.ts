@@ -1,13 +1,23 @@
 import { prisma } from '../../../lib/prisma';
 import ApiError from '../../../utils/apiErrors';
 import { getOrSetCache, invalidateCache, invalidateCachePattern } from '../../../utils/cache';
-import { IOptions, paginationHelper } from '../../../utils/paginationHelper';
+import { paginationHelper, type IPaginationOptions as IOptions } from '../../../utils/paginationHelper';
 import { notifyStockAlert } from '../stock-alert/stockAlert.service';
 
 import { CacheKeys } from '../../../utils/cacheKeys';
-import { formatProductResponse } from './product.formatter';
+import { formatProductListResponse, formatProductResponse } from './product.formatter';
 import cloudinary from '../../config/cloudinary';
 
+
+type ProductQuery = {
+  categoryId?: string;
+  storeId?: string;
+  search?: string;
+  minPrice?: number;
+  maxPrice?: number;
+};
+
+type ProductOptions = IOptions;
 // ─────────────────────────────────────────────
 // VENDOR — create product
 // ─────────────────────────────────────────────
@@ -40,7 +50,7 @@ export const createProduct = async (
       images: images ? { create: images } : undefined,
       variants: variants ? { create: variants } : undefined,
     },
-    include: { images: true, variants: true, category: true },
+    include: { images: true, variants: true, category: true, brand: true },
   });
 
   // invalidate product cache
@@ -55,14 +65,8 @@ export const createProduct = async (
 // PUBLIC — get all products (cached)
 // ─────────────────────────────────────────────
 export const getAllProducts = async (
-  query: {
-    categoryId?: string;
-    storeId?: string;
-    search?: string;
-    minPrice?: number;
-    maxPrice?: number;
-  },
-  options: IOptions
+  query: ProductQuery,
+  options: ProductOptions
 ) => {
   const { page, limit, skip, sortBy, sortOrder } = paginationHelper.calculatePagination(options);
 
@@ -87,20 +91,22 @@ export const getAllProducts = async (
         }),
       };
 
-      const [data, total] = await Promise.all([
-        prisma.product.findMany({
-          where,
-          include: {
-            images: true,
-            category: true,
-            store: { select: { id: true, name: true, slug: true } },
-          },
-          orderBy: { [sortBy]: sortOrder },
-          skip,
-          take: limit,
-        }),
-        prisma.product.count({ where }),
-      ]);
+const [data, total] = await Promise.all([
+  prisma.product.findMany({
+    where,
+    include: {
+      images: true,
+      variants: true,
+      category: true,
+      brand: true,
+      store: { select: { id: true, name: true, slug: true } },
+    },
+    orderBy: { [sortBy]: sortOrder },
+    skip,
+    take: limit,
+  }),
+  prisma.product.count({ where }),
+]);
 
       return {
         meta: {
@@ -109,7 +115,7 @@ export const getAllProducts = async (
           total,
           totalPages: Math.ceil(total / limit),
         },
-        data,
+        data: data.map(formatProductListResponse),
       };
     }
   );
@@ -372,7 +378,7 @@ export const getBestsellers = async () => {
       prisma.product.findMany({
         where: { isActive: true },
         take: 12,
-        orderBy: { orderCount: "desc" }, // track this in OrderItem
+        orderBy: { rating: "desc", reviewCount: "desc",  createdAt: "desc",}, // track this in OrderItem
         include: {
           images: { take: 1 },
           category: { select: { name: true, slug: true } },
@@ -386,6 +392,7 @@ export const getBestsellers = async () => {
 export const getNewArrivals = async () => {
   return getOrSetCache(
     CacheKeys.NEW_ARRIVALS,
+    
     1800,
     () =>
       prisma.product.findMany({
@@ -419,7 +426,7 @@ export const getRecommendations = async (productId: string) => {
       NOT: { id: productId }, // exclude current product
     },
     take: 8,
-    orderBy: { orderCount: "desc" }, // prioritize popular items
+    orderBy: { rating: "desc", reviewCount: "desc",  createdAt: "desc" }, // prioritize popular items
     include: {
       images: { take: 1 },
       category: { select: { name: true, slug: true } },

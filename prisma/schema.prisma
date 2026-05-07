@@ -167,6 +167,7 @@ model Product {
   slug        String?            @unique
   description String?
   price       Decimal
+  originalPrice Decimal?
   stock       Int              @default(0)
   storeId     String
   store       Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -175,7 +176,11 @@ model Product {
   images      ProductImage[]
   variants    ProductVariant[]
   isActive    Boolean          @default(true)
-
+rating        Float @default(0)
+  reviewCount   Int            @default(0)
+   brandId       String?
+   orderCount Int @default(0)
+  brand     Brand?  @relation(fields: [brandId], references: [id])
   orderItems OrderItem[]
   cartItems CartItem[]
   reviews Review[]
@@ -192,6 +197,13 @@ stockAlerts StockAlert[]
   @@index([createdAt])
   @@index([storeId, isActive])       // compound — vendor product listing
   @@index([categoryId, isActive])    // compound — category browsing
+}
+
+model Brand{
+  id        String    @id @default(cuid())
+  name      String    @unique
+  products  Product[]
+
 }
 
 model ProductImage {

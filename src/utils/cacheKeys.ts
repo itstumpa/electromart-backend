@@ -10,14 +10,20 @@ export const CacheKeys = {
   SEARCH_PRODUCTS: (query: string) => `products:search:${query}`,
   SEARCH_SUGGESTIONS: (q: string) => `products:suggestions:${q}`,
   PRODUCT_SLUG: (slug: string) => `product:slug:${slug}`,
+  FEATURED_PRODUCTS: "featured_products",
+  BESTSELLERS: "bestsellers",
+  NEW_ARRIVALS: "new_arrivals",
 
-  
   // stores
   ALL_STORES: "stores:all",
   SINGLE_STORE: (id: string) => `stores:${id}`,
 
   // reviews
   PRODUCT_REVIEWS: (productId: string) => `reviews:product:${productId}`,
+ // analytics
+  PRODUCT_ANALYTICS: (productId: string) => `analytics:product:${productId}`,
+  STORE_ANALYTICS: (storeId: string) => `analytics:store:${storeId}`,
+
 
   // admin
   ADMIN_DASHBOARD: "admin:dashboard",
