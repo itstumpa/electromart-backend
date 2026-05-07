@@ -5,12 +5,15 @@ import {
   invalidateCache,
 } from "../../../utils/cache";
 import { CacheKeys } from "../../../utils/cacheKeys";
+import { Request, Response } from 'express';
 
 const generateSlug = (name: string) =>
   name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
+
+
 // ADMIN — create
-export const createCategory = async (name: string) => {
+export const createCategory = async (name: string, image: string) => {
   const slug = generateSlug(name);
 
   const existing = await prisma.category.findUnique({
@@ -22,7 +25,7 @@ export const createCategory = async (name: string) => {
   }
 
   const category = await prisma.category.create({
-    data: { name, slug },
+    data: { name, slug, image, isFeatured: false },
   });
 
   await invalidateCache(CacheKeys.ALL_CATEGORIES);
@@ -32,9 +35,9 @@ export const createCategory = async (name: string) => {
 
 // PUBLIC — get all
 export const getAllCategories = async () => {
-  return getOrSetCache(
+  const categories = await getOrSetCache(
     CacheKeys.ALL_CATEGORIES,
-    3600, // 1 hour
+    3600,
     () =>
       prisma.category.findMany({
         orderBy: { name: "asc" },
@@ -45,6 +48,14 @@ export const getAllCategories = async () => {
         },
       })
   );
+
+  return categories.map((cat) => ({
+    id: cat.id,
+    name: cat.name,
+    slug: cat.slug,
+    image: cat.image,
+    productCount: cat._count.products,
+  }));
 };
 
 // PUBLIC — get single
@@ -78,7 +89,11 @@ export const getCategoryById = async (id: string) => {
 };
 
 // ADMIN — update
-export const updateCategory = async (id: string, name: string) => {
+export const updateCategory = async (
+  id: string,
+  name: string,
+  image?: string
+) => {
   const category = await prisma.category.findUnique({
     where: { id },
   });
@@ -102,7 +117,11 @@ export const updateCategory = async (id: string, name: string) => {
 
   const updatedCategory = await prisma.category.update({
     where: { id },
-    data: { name, slug },
+    data: {
+      name,
+      slug,
+      ...(image && { image }),
+    },
   });
 
   await invalidateCache(CacheKeys.ALL_CATEGORIES);

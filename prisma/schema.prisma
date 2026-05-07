@@ -155,7 +155,9 @@ model Category {
   name      String    @unique
   slug      String    @unique
   isFeatured Boolean? @default(false)
+  image     String?
   products  Product[]
+
   createdAt DateTime  @default(now())
 }
 

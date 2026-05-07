@@ -5,8 +5,23 @@ import sendResponse from "../../../utils/sendResponse";
 import * as CategoryService from "./category.service";
 
 export const createCategory = catchAsync(async (req: Request, res: Response) => {
-  const category = await CategoryService.createCategory(req.body.name);
-  sendResponse(res, { statusCode: 201, success: true, message: "Category created", data: category });
+  const { name } = req.body;
+
+  const files = (req.files as Express.Multer.File[]) || [];
+
+  const image = files[0]?.path;
+
+  const category = await CategoryService.createCategory(
+    name,
+    image
+  );
+
+  sendResponse(res, {
+    statusCode: 201,
+    success: true,
+    message: "Category created",
+    data: category,
+  });
 });
 
 export const getAllCategories = catchAsync(async (req: Request, res: Response) => {
@@ -20,8 +35,25 @@ export const getCategoryById = catchAsync(async (req: Request, res: Response) =>
 });
 
 export const updateCategory = catchAsync(async (req: Request, res: Response) => {
-  const category = await CategoryService.updateCategory(req.params.id as string, req.body.name);
-  sendResponse(res, { statusCode: 200, success: true, message: "Category updated", data: category });
+  const { id } = req.params;
+  const { name } = req.body;
+
+  const files = (req.files as Express.Multer.File[]) || [];
+
+  const image = files[0]?.path;
+
+  const result = await CategoryService.updateCategory(
+    id as string,
+    name,
+    image
+  );
+
+  sendResponse(res, {
+    success: true,
+    data: result,
+    statusCode: 200,
+    message: "Category Updated"
+  });
 });
 
 export const getFeaturedCategories = catchAsync(async (req: Request, res: Response) => {
