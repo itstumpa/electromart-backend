@@ -34,7 +34,7 @@ export const getOrderTimeline = async (
   });
 
   if (!order) throw new ApiError(404, "Order not found");
-  if (!isAdmin && order.customerId !== requesterId) {
+  if (!isAdmin && order.userId !== requesterId) { // was: order.customerId
     throw new ApiError(403, "Access denied");
   }
 

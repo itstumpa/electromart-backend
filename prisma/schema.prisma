@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
 enum Role {
   SUPER_ADMIN
   CUSTOMER
@@ -31,12 +32,13 @@ model Address {
   city       String
   state      String
   country    String   @default("Bangladesh")
-  postalCode String
-  orders Order[]
+  zipCode String
   isDefault  Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
+
 
 // ── Order Tracking Timeline ───────────────────────────────────────────────────
 model OrderStatusHistory {
@@ -117,6 +119,8 @@ model User {
   passwordResetToken  String?
   passwordResetExpiry DateTime?
   emailNotificationEnabled Boolean @default(true)
+  phone     String?
+
   orders              Order[]
   notifications  Notification[]
   returnRequests ReturnRequest[]
@@ -230,7 +234,7 @@ model ProductVariant {
 
 enum PaymentStatus {
   PENDING
-  SUCCESS
+  PAID
   FAILED
   REFUNDED
 }
@@ -238,14 +242,19 @@ enum PaymentStatus {
 enum PaymentGateway {
   SSLCOMMERZ
   STRIPE
+  BKASH
+  MANUAL
 }
 
 model Payment {
   id              String          @id @default(cuid())
   orderId         String          @unique
   order           Order           @relation(fields: [orderId], references: [id])
-  gateway         PaymentGateway
   status          PaymentStatus   @default(PENDING)
+  cardName    String?
+ last4       String?   // only last 4 digits
+   provider    String?   // stripe, sslcommerz, cod
+   gateway   PaymentGateway
   amount          Decimal
   currency        String          @default("BDT")
   transactionId   String?         // gateway transaction ID
@@ -254,6 +263,11 @@ model Payment {
   refundId        String?         // gateway refund ID
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
+}
+enum PaymentMethod {
+  CARD
+  BKASH
+  CASH_ON_DELIVERY
 }
 
 enum OrderStatus {
@@ -266,25 +280,47 @@ enum OrderStatus {
 
 model Order {
   id          String      @id @default(cuid())
-  customerId  String
-  customer    User        @relation(fields: [customerId], references: [id])
-  totalAmount Decimal
-  status      OrderStatus @default(PENDING)
+   userId        String
+  user          User        @relation(fields: [userId], references: [id])
+ 
+   status      OrderStatus @default(PENDING)
   items       OrderItem[]
   couponId  String?
   coupon    Coupon?  @relation(fields: [couponId], references: [id])
   discount  Decimal  @default(0)
   payment   Payment?
   statusHistory OrderStatusHistory[]
-  addressId String?
-  address   Address? @relation(fields: [addressId], references: [id])
+  
+  shipping      OrderAddress?
+  
+  subtotal      Decimal
+  shippingCost  Decimal
+  tax           Decimal
+  total         Decimal
+
+  currency      String      @default("TK")
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-    @@index([customerId])
+    @@index([userId])
   @@index([status])
   @@index([createdAt])
-  @@index([customerId, status])      // compound — my orders by status
+  @@index([userId, status])      // compound — my orders by status
+}
+
+model OrderAddress {
+  id        String @id @default(cuid())
+
+  orderId   String @unique
+  order     Order?  @relation(fields: [orderId], references: [id])
+
+  fullName  String
+  phone     String
+  street    String
+  city      String
+  state     String
+  zipCode   String
+  country   String
 }
 
 model OrderItem {
@@ -296,14 +332,24 @@ model OrderItem {
   storeId      String
   store        Store       @relation(fields: [storeId], references: [id])
   quantity     Int
+  productImage String
+  variant     String?
   returnRequest ReturnRequest?
   priceAtTime  Decimal     // snapshot of price when ordered
-  status       OrderStatus @default(PENDING)  // vendor controls this
+  status       OrderItemStatus @default(PENDING)  // vendor controls this
   createdAt    DateTime    @default(now())
     @@index([orderId])
   @@index([storeId])
   @@index([productId])
   @@index([status])
+}
+
+enum OrderItemStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
 }
 
 model Cart {
@@ -332,7 +378,7 @@ model CartItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([cartId, productId, variantId])
+  @@unique([cartId, productId])
   @@index([cartId])
   @@index([productId])
 }

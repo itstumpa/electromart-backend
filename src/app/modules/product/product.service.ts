@@ -110,6 +110,7 @@ const [data, total] = await Promise.all([
       },
 
       brand: true,
+      variants: true,
     },
 
     orderBy: { [sortBy]: sortOrder },

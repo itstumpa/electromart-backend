@@ -2,14 +2,14 @@
 import Stripe from "stripe";
 import { prisma } from "../../../lib/prisma";
 
+import ApiError from "../../../utils/apiErrors";
+import { sendEmail } from "../../../utils/sendEmail";
+import { createNotification } from "../notification/notification.service";
 import {
   initiateSSLCommerzPayment,
-  validateSSLCommerzPayment,
   refundSSLCommerzPayment,
+  validateSSLCommerzPayment,
 } from "./sslcommerz.service";
-import { createNotification } from "../notification/notification.service";
-import { sendEmail } from "../../../utils/sendEmail";
-import ApiError from "../../../utils/apiErrors";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
@@ -18,38 +18,37 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 export const initiatePayment = async (
   customerId: string,
   orderId: string,
-  gateway: "SSLCOMMERZ" | "STRIPE"
+  PaymentGateway: "SSLCOMMERZ" | "STRIPE"
 ) => {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
-      customer: true,
+      user: true,                          // was: customer
       items: { include: { product: true } },
       payment: true,
     },
   });
 
   if (!order) throw new ApiError(404, "Order not found");
-  if (order.customerId !== customerId) throw new ApiError(403, "Access denied");
-  if (order.payment?.status === "SUCCESS") {
+  if (order.userId !== customerId) throw new ApiError(403, "Access denied"); // was: order.customerId
+  if (order.payment?.status === "PAID") {
     throw new ApiError(400, "Order already paid");
   }
 
-  const amount = Number(order.totalAmount);
+  const amount = Number(order.total);      // was: order.totalAmount
 
   // ── SSLCommerz ──────────────────────────────────────────────────────────────
-  if (gateway === "SSLCOMMERZ") {
+  if (PaymentGateway === "SSLCOMMERZ") {
     const { gatewayUrl, sessionKey } = await initiateSSLCommerzPayment({
       orderId,
       amount,
       currency: "BDT",
-      customerName: order.customer.name,
-      customerEmail: order.customer.email,
-      customerPhone: "01700000000", // ideally from user profile
+      customerName: order.user.name,       // was: order.customer.name
+      customerEmail: order.user.email,     // was: order.customer.email
+      customerPhone: "01700000000",
       customerAddress: "Dhaka, Bangladesh",
     });
 
-    // upsert payment record
     await prisma.payment.upsert({
       where: { orderId },
       update: {
@@ -73,7 +72,7 @@ export const initiatePayment = async (
   }
 
   // ── Stripe ──────────────────────────────────────────────────────────────────
-  if (gateway === "STRIPE") {
+  if (PaymentGateway === "STRIPE") {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
@@ -81,7 +80,7 @@ export const initiatePayment = async (
         price_data: {
           currency: "usd",
           product_data: { name: item.product.name },
-          unit_amount: Math.round(Number(item.product.price) * 100), // cents
+          unit_amount: Math.round(Number(item.product.price) * 100),
         },
         quantity: item.quantity,
       })),
@@ -117,23 +116,19 @@ export const initiatePayment = async (
 
 // ── SSLCOMMERZ SUCCESS REDIRECT ───────────────────────────────────────────────
 
-export const handleSSLCommerzSuccess = async (body: any) => {
+export const handleSSLCommerzSuccess = async (body: Record<string, string>) => {
   const { val_id, tran_id, status } = body;
 
   if (status !== "VALID" && status !== "VALIDATED") {
     throw new ApiError(400, "Payment validation failed");
   }
 
-  // validate with SSLCommerz server
   const validation = await validateSSLCommerzPayment(val_id);
 
-  if (
-    validation.status !== "VALID" &&
-    validation.status !== "VALIDATED"
-  ) {
+  if (validation.status !== "VALID" && validation.status !== "VALIDATED") {
     await prisma.payment.update({
       where: { orderId: tran_id },
-      data: { status: "FAILED", gatewayResponse: validation },
+      data: { status: "FAILED", gatewayResponse: JSON.stringify(validation) },
     });
     throw new ApiError(400, "Payment validation failed on server");
   }
@@ -144,7 +139,7 @@ export const handleSSLCommerzSuccess = async (body: any) => {
 
 // ── SSLCOMMERZ FAIL REDIRECT ──────────────────────────────────────────────────
 
-export const handleSSLCommerzFail = async (body: any) => {
+export const handleSSLCommerzFail = async (body: Record<string, string>) => {
   const { tran_id } = body;
 
   await prisma.payment.update({
@@ -162,7 +157,7 @@ export const handleSSLCommerzFail = async (body: any) => {
 
 // ── SSLCOMMERZ IPN (server-to-server webhook) ─────────────────────────────────
 
-export const handleSSLCommerzIPN = async (body: any) => {
+export const handleSSLCommerzIPN = async (body: Record<string, string>) => {
   const { val_id, tran_id, status } = body;
 
   if (status === "VALID" || status === "VALIDATED") {
@@ -199,10 +194,8 @@ export const handleStripeWebhook = async (
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
     const orderId = session.metadata?.orderId;
-
     if (!orderId) return;
-
-    await confirmPayment(orderId, session.payment_intent as string, session);
+    await confirmPayment(orderId, session.payment_intent as string, JSON.parse(JSON.stringify(session)));
   }
 
   if (event.type === "checkout.session.expired") {
@@ -212,7 +205,8 @@ export const handleStripeWebhook = async (
 
     await prisma.payment.update({
       where: { orderId },
-      data: { status: "FAILED", gatewayResponse: session as any },
+      data: { status: "FAILED", 
+      gatewayResponse: JSON.stringify(session) },
     });
   }
 };
@@ -222,20 +216,15 @@ export const handleStripeWebhook = async (
 const confirmPayment = async (
   orderId: string,
   transactionId: string,
-  gatewayResponse: any
+  gatewayResponse: Record<string, unknown>
 ) => {
-  // idempotent — skip if already confirmed
   const existing = await prisma.payment.findUnique({ where: { orderId } });
-  if (existing?.status === "SUCCESS") return;
+  if (existing?.status === "PAID") return;
 
   await prisma.$transaction(async (tx) => {
     await tx.payment.update({
       where: { orderId },
-      data: {
-        status: "SUCCESS",
-        transactionId,
-        gatewayResponse,
-      },
+      data: { status: "PAID", transactionId, gatewayResponse: JSON.stringify(gatewayResponse) },
     });
 
     await tx.order.update({
@@ -244,26 +233,25 @@ const confirmPayment = async (
     });
   });
 
-  // notify customer
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { customer: true },
+    include: { user: true },              // was: customer
   });
 
   if (order) {
     await createNotification({
-      userId: order.customerId,
+      userId: order.userId,               // was: order.customerId
       title: "Payment Successful",
       message: `Payment confirmed for order #${orderId.slice(-6).toUpperCase()}`,
       type: "ORDER_PLACED",
     });
 
     await sendEmail({
-      to: order.customer.email,
+      to: order.user.email,              // was: order.customer.email
       subject: "✅ Payment Confirmed — ElectroMart",
       html: `
-        <p>Hi ${order.customer.name},</p>
-        <p>Your payment of <strong>$${Number(order.totalAmount)}</strong> for order 
+        <p>Hi ${order.user.name},</p>
+        <p>Your payment of <strong>$${Number(order.total)}</strong> for order 
         <strong>#${orderId.slice(-6).toUpperCase()}</strong> was successful.</p>
         <p>Transaction ID: <code>${transactionId}</code></p>
         <p>Your order is now being processed.</p>
@@ -277,11 +265,11 @@ const confirmPayment = async (
 export const refundPayment = async (orderId: string, reason: string) => {
   const payment = await prisma.payment.findUnique({
     where: { orderId },
-    include: { order: { include: { customer: true } } },
+    include: { order: { include: { user: true } } },  // was: customer
   });
 
   if (!payment) throw new ApiError(404, "Payment not found");
-  if (payment.status !== "SUCCESS") {
+  if (payment.status !== "PAID") {
     throw new ApiError(400, "Only successful payments can be refunded");
   }
   if (!payment.transactionId) {
@@ -290,8 +278,7 @@ export const refundPayment = async (orderId: string, reason: string) => {
 
   let refundId: string;
 
-  // ── SSLCommerz refund ────────────────────────────────────────────────────
-  if (payment.gateway === "SSLCOMMERZ") {
+  if (payment.gatewayResponse === "SSLCOMMERZ") {
     const result = await refundSSLCommerzPayment(
       payment.transactionId,
       Number(payment.amount),
@@ -303,10 +290,7 @@ export const refundPayment = async (orderId: string, reason: string) => {
     }
 
     refundId = result.refund_ref_id;
-  }
-
-  // ── Stripe refund ────────────────────────────────────────────────────────
-  else if (payment.gateway === "STRIPE") {
+  } else if (payment.gatewayResponse === "STRIPE") {
     const refund = await stripe.refunds.create({
       payment_intent: payment.transactionId,
       reason: "requested_by_customer",
@@ -316,7 +300,6 @@ export const refundPayment = async (orderId: string, reason: string) => {
     throw new ApiError(400, "Unknown gateway");
   }
 
-  // update payment + order
   await prisma.$transaction(async (tx) => {
     await tx.payment.update({
       where: { orderId },
@@ -329,19 +312,18 @@ export const refundPayment = async (orderId: string, reason: string) => {
     });
   });
 
-  // notify customer
   await createNotification({
-    userId: payment.order.customerId,
+    userId: payment.order.userId,          // was: order.customerId
     title: "Refund Processed",
     message: `Your refund of ${payment.amount} has been processed`,
     type: "ORDER_STATUS_CHANGED",
   });
 
   await sendEmail({
-    to: payment.order.customer.email,
+    to: payment.order.user.email,          // was: order.customer.email
     subject: "💰 Refund Processed — ElectroMart",
     html: `
-      <p>Hi ${payment.order.customer.name},</p>
+      <p>Hi ${payment.order.user.name},</p>
       <p>Your refund of <strong>${payment.amount} ${payment.currency}</strong> 
       for order <strong>#${orderId.slice(-6).toUpperCase()}</strong> has been processed.</p>
       <p>Refund ID: <code>${refundId}</code></p>
@@ -361,11 +343,11 @@ export const getPaymentByOrderId = async (
 ) => {
   const payment = await prisma.payment.findUnique({
     where: { orderId },
-    include: { order: { select: { customerId: true } } },
+    include: { order: { select: { userId: true } } },  // was: customerId
   });
 
   if (!payment) throw new ApiError(404, "Payment not found");
-  if (!isAdmin && payment.order.customerId !== customerId) {
+  if (!isAdmin && payment.order.userId !== customerId) {  // was: order.customerId
     throw new ApiError(403, "Access denied");
   }
 
