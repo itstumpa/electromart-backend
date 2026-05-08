@@ -15,6 +15,10 @@ npx prisma generate
 npm install -D ts-node
 npx tsx prisma/admin-seed.ts
 
+
+<!-- for task kill  -->
+for /f "tokens=5" %a in ('netstat -aon ^| findstr :5000') do taskkill /F /PID %a
+
 ```
 
 ```

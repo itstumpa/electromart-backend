@@ -5,13 +5,19 @@ CREATE TYPE "Role" AS ENUM ('SUPER_ADMIN', 'CUSTOMER', 'VENDOR', 'ADMIN');
 CREATE TYPE "NotificationTargetType" AS ENUM ('USER', 'USERS', 'ROLE', 'ALL_USERS');
 
 -- CreateEnum
-CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED');
+CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'PAID', 'FAILED', 'REFUNDED');
 
 -- CreateEnum
-CREATE TYPE "PaymentGateway" AS ENUM ('SSLCOMMERZ', 'STRIPE');
+CREATE TYPE "PaymentGateway" AS ENUM ('SSLCOMMERZ', 'STRIPE', 'BKASH', 'MANUAL');
+
+-- CreateEnum
+CREATE TYPE "PaymentMethod" AS ENUM ('CARD', 'BKASH', 'CASH_ON_DELIVERY');
 
 -- CreateEnum
 CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "OrderItemStatus" AS ENUM ('PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED');
 
 -- CreateEnum
 CREATE TYPE "ReturnStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
@@ -27,7 +33,7 @@ CREATE TABLE "Address" (
     "city" TEXT NOT NULL,
     "state" TEXT NOT NULL,
     "country" TEXT NOT NULL DEFAULT 'Bangladesh',
-    "postalCode" TEXT NOT NULL,
+    "zipCode" TEXT NOT NULL,
     "isDefault" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -113,6 +119,7 @@ CREATE TABLE "User" (
     "passwordResetToken" TEXT,
     "passwordResetExpiry" TIMESTAMP(3),
     "emailNotificationEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "phone" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -128,6 +135,10 @@ CREATE TABLE "Store" (
     "logo" TEXT,
     "ownerId" TEXT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "totalSales" INTEGER NOT NULL DEFAULT 0,
+    "totalRevenue" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "rating" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "isFeatured" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -205,8 +216,11 @@ CREATE TABLE "ProductVariant" (
 CREATE TABLE "Payment" (
     "id" TEXT NOT NULL,
     "orderId" TEXT NOT NULL,
-    "gateway" "PaymentGateway" NOT NULL,
     "status" "PaymentStatus" NOT NULL DEFAULT 'PENDING',
+    "cardName" TEXT,
+    "last4" TEXT,
+    "provider" TEXT,
+    "gateway" "PaymentGateway" NOT NULL,
     "amount" DECIMAL(65,30) NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'BDT',
     "transactionId" TEXT,
@@ -222,16 +236,34 @@ CREATE TABLE "Payment" (
 -- CreateTable
 CREATE TABLE "Order" (
     "id" TEXT NOT NULL,
-    "customerId" TEXT NOT NULL,
-    "totalAmount" DECIMAL(65,30) NOT NULL,
+    "userId" TEXT NOT NULL,
     "status" "OrderStatus" NOT NULL DEFAULT 'PENDING',
     "couponId" TEXT,
     "discount" DECIMAL(65,30) NOT NULL DEFAULT 0,
-    "addressId" TEXT,
+    "subtotal" DECIMAL(65,30) NOT NULL,
+    "shippingCost" DECIMAL(65,30) NOT NULL,
+    "tax" DECIMAL(65,30) NOT NULL,
+    "total" DECIMAL(65,30) NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'TK',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Order_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OrderAddress" (
+    "id" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "fullName" TEXT NOT NULL,
+    "phone" TEXT NOT NULL,
+    "street" TEXT NOT NULL,
+    "city" TEXT NOT NULL,
+    "state" TEXT NOT NULL,
+    "zipCode" TEXT NOT NULL,
+    "country" TEXT NOT NULL,
+
+    CONSTRAINT "OrderAddress_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -241,8 +273,10 @@ CREATE TABLE "OrderItem" (
     "productId" TEXT NOT NULL,
     "storeId" TEXT NOT NULL,
     "quantity" INTEGER NOT NULL,
+    "productImage" TEXT NOT NULL,
+    "variant" TEXT,
     "priceAtTime" DECIMAL(65,30) NOT NULL,
-    "status" "OrderStatus" NOT NULL DEFAULT 'PENDING',
+    "status" "OrderItemStatus" NOT NULL DEFAULT 'PENDING',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "OrderItem_pkey" PRIMARY KEY ("id")
@@ -263,6 +297,7 @@ CREATE TABLE "CartItem" (
     "id" TEXT NOT NULL,
     "cartId" TEXT NOT NULL,
     "productId" TEXT NOT NULL,
+    "variantId" TEXT,
     "quantity" INTEGER NOT NULL DEFAULT 1,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -368,6 +403,12 @@ CREATE INDEX "Store_isActive_idx" ON "Store"("isActive");
 CREATE INDEX "Store_slug_idx" ON "Store"("slug");
 
 -- CreateIndex
+CREATE INDEX "Store_totalSales_idx" ON "Store"("totalSales");
+
+-- CreateIndex
+CREATE INDEX "Store_rating_idx" ON "Store"("rating");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Category_name_key" ON "Category"("name");
 
 -- CreateIndex
@@ -407,7 +448,7 @@ CREATE UNIQUE INDEX "Brand_slug_key" ON "Brand"("slug");
 CREATE UNIQUE INDEX "Payment_orderId_key" ON "Payment"("orderId");
 
 -- CreateIndex
-CREATE INDEX "Order_customerId_idx" ON "Order"("customerId");
+CREATE INDEX "Order_userId_idx" ON "Order"("userId");
 
 -- CreateIndex
 CREATE INDEX "Order_status_idx" ON "Order"("status");
@@ -416,7 +457,10 @@ CREATE INDEX "Order_status_idx" ON "Order"("status");
 CREATE INDEX "Order_createdAt_idx" ON "Order"("createdAt");
 
 -- CreateIndex
-CREATE INDEX "Order_customerId_status_idx" ON "Order"("customerId", "status");
+CREATE INDEX "Order_userId_status_idx" ON "Order"("userId", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OrderAddress_orderId_key" ON "OrderAddress"("orderId");
 
 -- CreateIndex
 CREATE INDEX "OrderItem_orderId_idx" ON "OrderItem"("orderId");
@@ -518,13 +562,13 @@ ALTER TABLE "ProductVariant" ADD CONSTRAINT "ProductVariant_productId_fkey" FORE
 ALTER TABLE "Payment" ADD CONSTRAINT "Payment_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Order" ADD CONSTRAINT "Order_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Order" ADD CONSTRAINT "Order_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Order" ADD CONSTRAINT "Order_couponId_fkey" FOREIGN KEY ("couponId") REFERENCES "Coupon"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Order" ADD CONSTRAINT "Order_addressId_fkey" FOREIGN KEY ("addressId") REFERENCES "Address"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "OrderAddress" ADD CONSTRAINT "OrderAddress_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -543,6 +587,9 @@ ALTER TABLE "CartItem" ADD CONSTRAINT "CartItem_cartId_fkey" FOREIGN KEY ("cartI
 
 -- AddForeignKey
 ALTER TABLE "CartItem" ADD CONSTRAINT "CartItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CartItem" ADD CONSTRAINT "CartItem_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "ProductVariant"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
