@@ -17,7 +17,7 @@ export const createReturnRequest = async (customerId: string, orderItemId: strin
   });
 
   if (!orderItem) throw new ApiError(404, 'Order item not found');
-  if (orderItem.order.customerId !== customerId) {
+  if (orderItem.order.userId !== customerId) {
     throw new ApiError(403, 'This is not your order');
   }
   if (orderItem.status !== 'DELIVERED') {

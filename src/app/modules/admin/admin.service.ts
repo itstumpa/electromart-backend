@@ -2,8 +2,8 @@
 import { prisma } from '../../../lib/prisma';
 import { getOrSetCache } from '../../../utils/cache';
 import { CacheKeys } from '../../../utils/cacheKeys';
-import { IOptions, paginationHelper } from '../../../utils/paginationHelper';
-
+import { type IPaginationOptions as IOptions } from '../../../utils/paginationHelper';
+import { paginationHelper } from "../../../utils/paginationHelper";
 // ── OVERVIEW ──────────────────────────────────────────────────────────────────
 export const getDashboardOverview = async () => {
   return getOrSetCache(
@@ -24,43 +24,43 @@ export const getDashboardOverview = async () => {
         // total revenue from delivered orders
         prisma.order.aggregate({
           where: { status: 'DELIVERED' },
-          _sum: { totalAmount: true },
+          _sum: { total: true },
         }),
-
+        
         // total orders
         prisma.order.count(),
-
+        
         // orders grouped by status
         prisma.order.groupBy({
           by: ['status'],
           _count: { status: true },
         }),
-
+        
         // total users
         prisma.user.count(),
-
+        
         // users by role
         prisma.user.groupBy({
           by: ['role'],
           _count: { role: true },
         }),
-
+        
         // total active products
         prisma.product.count({ where: { isActive: true } }),
-
+        
         // total active stores
         prisma.store.count({ where: { isActive: true } }),
-
+        
         // recent 5 orders
         prisma.order.findMany({
           take: 5,
           orderBy: { createdAt: 'desc' },
           include: {
-            customer: { select: { id: true, name: true, email: true } },
+            user: { select: { id: true, name: true, email: true } },
             items: { select: { id: true } },
           },
         }),
-
+        
         // top 5 selling products by order item count
         prisma.orderItem.groupBy({
           by: ['productId'],
@@ -100,8 +100,7 @@ export const getDashboardOverview = async () => {
       }, {});
 
       return {
-        totalRevenue: totalRevenue._sum.totalAmount || 0,
-        totalOrders,
+totalRevenue: totalRevenue._sum?.total?.toNumber?.() ?? 0,        totalOrders,
         totalUsers,
         totalProducts,
         totalStores,
@@ -157,7 +156,7 @@ export const getRecentPayments = async (options: IOptions) => {
     prisma.order.findMany({
       where,
       include: {
-        customer: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true } },
         items: {
           include: {
             store: { select: { id: true, name: true } },

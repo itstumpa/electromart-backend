@@ -2,7 +2,7 @@
 import { OrderStatus } from '@prisma/client';
 import { Request, Response } from 'express';
 import catchAsync from '../../../utils/catchAsync';
-import { IOptions } from '../../../utils/paginationHelper';
+import { type IPaginationOptions as IOptions } from '../../../utils/paginationHelper';
 import sendResponse from '../../../utils/sendResponse';
 import * as OrderService from './order.service';
 

@@ -30,9 +30,9 @@ model Address {
   phone      String
   street     String
   city       String
-  state      String
+  state      String?
   country    String   @default("Bangladesh")
-  zipCode String
+  zipCode String?
   isDefault  Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -200,6 +200,7 @@ rating        Float @default(0)
   orderItems OrderItem[]
   cartItems CartItem[]
   reviews Review[]
+   specifications ProductSpecification[]
   tags       ProductTag[]
 questions  ProductQuestion[]
 stockAlerts StockAlert[]
@@ -240,6 +241,19 @@ model ProductVariant {
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
    cartItems CartItem[]
+}
+
+model ProductSpecification {
+  id        String   @id @default(uuid())
+  key       String   // "RAM"
+  value     String   // "8 GB"
+
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([productId])
 }
 
 enum PaymentStatus {

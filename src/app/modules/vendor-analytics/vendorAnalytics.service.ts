@@ -28,7 +28,7 @@ export const getVendorAnalytics = async (ownerId: string) => {
         prisma.orderItem.findMany({
           where: { storeId },
           select: {
-            order: { select: { customerId: true } },
+            order: { select: { userId: true } },
           },
           distinct: ['orderId'],
         }),
@@ -100,7 +100,7 @@ export const getVendorAnalytics = async (ownerId: string) => {
       // ─────────────────────────────
       // unique customers
       // ─────────────────────────────
-      const uniqueCustomerIds = new Set(customers.map((c) => c.order.customerId));
+      const uniqueCustomerIds = new Set(customers.map((c) => c.order.userId));
 
       return {
         store: {

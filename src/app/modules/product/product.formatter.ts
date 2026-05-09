@@ -4,6 +4,7 @@ type ProductWithRelations = Prisma.ProductGetPayload<{
   include: {
     images: true;
     variants: true;
+    specifications: true;
     category: true;
     brand: true;
   };
@@ -126,11 +127,25 @@ export const formatProductResponse = (product: ProductWithRelations) => ({
     stock: variant.stock,
   })),
 
+    specifications: product.specifications.map((spec) => ({
+    id: spec.id,
+    key: spec.key,
+    value: spec.value,
+  })),
+
   category: {
     id: product.category.id,
     name: product.category.name,
     slug: product.category.slug,
   },
+
+    brand: product.brand
+    ? {
+        id: product.brand.id,
+        name: product.brand.name,
+        slug: product.brand.slug,
+      }
+    : null,
 });
 
 export const formatProductListResponse = (product: ProductListWithRelations) => ({

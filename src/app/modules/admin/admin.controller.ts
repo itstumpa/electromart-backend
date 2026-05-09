@@ -1,7 +1,7 @@
 // src/app/modules/admin/admin.controller.ts
 import { Request, Response } from 'express';
 import catchAsync from '../../../utils/catchAsync';
-import { IOptions } from '../../../utils/paginationHelper';
+import { type IPaginationOptions as IOptions } from '../../../utils/paginationHelper';
 import sendResponse from '../../../utils/sendResponse';
 import * as AdminService from './admin.service';
 

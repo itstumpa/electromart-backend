@@ -95,3 +95,8 @@ docker-compose down
 }
 
 ```
+ "specifications": [
+    { "key": "RAM", "value": "16 GB" },
+    { "key": "Storage", "value": "512 GB SSD" },
+    { "key": "Display", "value": "13.6 inch Liquid Retina" }
+  ]

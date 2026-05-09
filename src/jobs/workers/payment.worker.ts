@@ -17,12 +17,12 @@ const processPaymentJob = async (job: Job<PaymentJobData>) => {
 
     // idempotent check
     const existing = await prisma.payment.findUnique({ where: { orderId } });
-    if (existing?.status === "SUCCESS") return;
+    if (existing?.status === "PAID") return;
 
     await prisma.$transaction(async (tx) => {
       await tx.payment.update({
         where: { orderId },
-        data: { status: "SUCCESS", transactionId, gatewayResponse },
+        data: { status: "PAID", transactionId, gatewayResponse },
       });
       await tx.order.update({
         where: { id: orderId },
@@ -32,22 +32,22 @@ const processPaymentJob = async (job: Job<PaymentJobData>) => {
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { customer: true },
+      include: { user: true },
     });
 
     if (order) {
       // queue email + notification
       await emailQueue.add("payment-confirmed", {
         type: "PAYMENT_CONFIRMED",
-        to: order.customer.email,
-        customerName: order.customer.name,
+        to: order.user.email,
+        customerName: order.user.name,
         orderId,
-        amount: Number(order.totalAmount),
+        amount: Number(order.total.toFixed(2)),
         transactionId,
       });
 
       await notificationQueue.add("payment-confirmed", {
-        userId: order.customerId,
+        userId: order.userId,
         title: "Payment Successful",
         message: `Payment confirmed for order #${orderId.slice(-6).toUpperCase()}`,
         type: "PAYMENT_CONFIRMED",

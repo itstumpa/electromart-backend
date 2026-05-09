@@ -1,7 +1,7 @@
 // src/app/modules/payment/payment.service.ts
 import Stripe from "stripe";
 import { prisma } from "../../../lib/prisma";
-
+import { PaymentStatus } from "@prisma/client";
 import ApiError from "../../../utils/apiErrors";
 import { sendEmail } from "../../../utils/sendEmail";
 import { createNotification } from "../notification/notification.service";
@@ -285,7 +285,7 @@ export const refundPayment = async (orderId: string, reason: string) => {
       reason
     );
 
-    if (result.status !== "success") {
+    if (result.status !== "paid") {
       throw new ApiError(400, `SSLCommerz refund failed: ${result.errorReason}`);
     }
 
