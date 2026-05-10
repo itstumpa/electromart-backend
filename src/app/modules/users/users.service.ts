@@ -11,21 +11,26 @@ export const createUser = async (data: { name: string; email: string; password: 
   });
 
   if (existing) {
-    throw new Error('Email already in use');
+    throw new ApiError(409, "Email already in use");
   }
 
   const hashedPassword = await bcrypt.hash(data.password, 10);
 
-  const user = await prisma.user.create({
+  return prisma.user.create({
     data: {
-      ...data,
+      name: data.name,
+      email: data.email,
       password: hashedPassword,
+      role: data.role ?? Role.CUSTOMER,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      createdAt: true,
     },
   });
-
-  // never return password
-  const { password, ...userWithoutPassword } = user;
-  return userWithoutPassword;
 };
 
 // ADMIN — get all users
@@ -70,28 +75,43 @@ export const updateUser = async (
   requesterRole: Role,
   data: { name?: string; email?: string }
 ) => {
-  // only the user themselves can update (admin cannot update others profile)
-  if (targetId !== requesterId) {
-    throw new ApiError(403, 'You can only update your own profile');
+  const isAdmin = requesterRole === Role.ADMIN;
+  const isSelf = targetId === requesterId;
+
+  if (!isAdmin && !isSelf) {
+    throw new ApiError(403, "Not allowed to update this user");
   }
 
   const user = await prisma.user.findUnique({ where: { id: targetId } });
-  if (!user) throw new ApiError(404, 'User not found');
+  if (!user) throw new ApiError(404, "User not found");
 
   return prisma.user.update({
     where: { id: targetId },
     data,
-    select: { id: true, name: true, email: true, role: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+    },
   });
 };
 
 // ADMIN — delete any user
-export const deleteUser = async (id: string) => {
-  const user = await prisma.user.findUnique({ where: { id } });
-  if (!user) throw new ApiError(404, 'User not found');
+export const deleteUser = async (id: string, requesterRole: Role) => {
+  if (requesterRole !== Role.ADMIN) {
+    throw new ApiError(403, "Only admin can delete users");
+  }
 
-  await prisma.user.delete({ where: { id } });
-  return { message: 'User deleted successfully' };
+  const deleted = await prisma.user.deleteMany({
+    where: { id },
+  });
+
+  if (deleted.count === 0) {
+    throw new ApiError(404, "User not found");
+  }
+
+  return { message: "User deleted successfully" };
 };
 
 // ADMIN — change user role
