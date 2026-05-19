@@ -4,14 +4,16 @@ import sendResponse from '../../../utils/sendResponse';
 import catchAsync from '../../../utils/catchAsync';
 import { Role } from '@prisma/client';
 
-export const createUser = async (req: Request, res: Response) => {
-  try {
-    const user = await UserService.createUser(req.body);
-    res.status(201).json({ success: true, data: user });
-  } catch (err: any) {
-    res.status(400).json({ success: false, message: err.message });
-  }
-};
+export const createUser = catchAsync(async (req: Request, res: Response) => {
+  const user = await UserService.createUser(req.body);
+
+  sendResponse(res, {
+    statusCode: 201,
+    success: true,
+    message: "User created successfully",
+    data: user,
+  });
+});
 
 export const getAllUsers = catchAsync(async (req: Request, res: Response) => {
   const users = await UserService.getAllUsers();
@@ -44,12 +46,12 @@ export const updateUser = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const deleteUser = catchAsync(async (req: Request, res: Response) => {
-  const result = await UserService.deleteUser(req.params.id as string);
+  const result = await UserService.deleteUser(req.params.id as string, req.user!.role);
   sendResponse(res, {
-    statusCode: 200,
+    statusCode: 200,        
     success: true,
-    message: result.message,
-    data: null,
+    message: 'User deleted successfully',
+    data: result,
   });
 });
 
