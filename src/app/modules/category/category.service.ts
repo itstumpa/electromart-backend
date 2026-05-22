@@ -10,6 +10,28 @@ import { Request, Response } from 'express';
 const generateSlug = (name: string) =>
   name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
+type CategoryWithCount = {
+  id: string;
+  name: string;
+  slug: string;
+  image: string | null;
+  createdAt: Date;
+  updatedAt?: Date;
+  _count: { products: number };
+};
+
+const formatCategoryForFrontend = (cat: CategoryWithCount) => ({
+  id: cat.id,
+  name: cat.name,
+  slug: cat.slug,
+  image: cat.image ?? undefined,
+  createdAt: cat.createdAt,
+  ...(cat.updatedAt && { updatedAt: cat.updatedAt }),
+  _count: {
+    products: cat._count.products,
+  },
+});
+
 
 
 // ADMIN — create
@@ -49,13 +71,7 @@ export const getAllCategories = async () => {
       })
   );
 
-  return categories.map((cat) => ({
-    id: cat.id,
-    name: cat.name,
-    slug: cat.slug,
-    image: cat.image,
-    productCount: cat._count.products,
-  }));
+  return categories.map(formatCategoryForFrontend);
 };
 
 // PUBLIC — get single
@@ -131,8 +147,8 @@ export const updateCategory = async (
 
 // PUBLIC — get featured
 export const getFeaturedCategories = async () => {
-  return getOrSetCache(
-    CacheKeys.FEATURED_CATEGORIES, // add this to your CacheKeys enum
+  const categories = await getOrSetCache(
+    CacheKeys.FEATURED_CATEGORIES,
     3600,
     () =>
       prisma.category.findMany({
@@ -143,8 +159,10 @@ export const getFeaturedCategories = async () => {
             select: { products: true },
           },
         },
-      })
+      }),
   );
+
+  return categories.map(formatCategoryForFrontend);
 };
 
 // ADMIN — delete

@@ -29,11 +29,19 @@ const generateRefreshToken = (userId: string) =>
 
 // ── Signup ────────────────────────────────────────────────────────────────────
 
+const generateStoreSlug = (name: string) =>
+  name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+
 export const signup = async (data: {
   name: string;
   email: string;
   password: string;
   role?: "CUSTOMER" | "VENDOR" | "ADMIN";
+  storeName?: string;
 }) => {
   const existing = await prisma.user.findUnique({
     where: { email: data.email },
@@ -48,20 +56,60 @@ export const signup = async (data: {
   const emailVerifyToken = crypto.randomBytes(32).toString("hex");
   const emailVerifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  const user = await prisma.user.create({
-    data: {
-      ...data,
-      password: hashedPassword,
-      emailVerifyToken,
-      emailVerifyExpiry,
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-    },
-  });
+  const role = data.role ?? "CUSTOMER";
+
+  const user =
+    role === "VENDOR" && data.storeName
+      ? await prisma.$transaction(async (tx) => {
+          const created = await tx.user.create({
+            data: {
+              name: data.name,
+              email: data.email,
+              password: hashedPassword,
+              role,
+              emailVerifyToken,
+              emailVerifyExpiry,
+            },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          });
+
+          let slug = generateStoreSlug(data.storeName!);
+          const slugTaken = await tx.store.findUnique({ where: { slug } });
+          if (slugTaken) {
+            slug = `${slug}-${created.id.slice(0, 8)}`;
+          }
+
+          await tx.store.create({
+            data: {
+              name: data.storeName!.trim(),
+              slug,
+              ownerId: created.id,
+            },
+          });
+
+          return created;
+        })
+      : await prisma.user.create({
+          data: {
+            name: data.name,
+            email: data.email,
+            password: hashedPassword,
+            role,
+            emailVerifyToken,
+            emailVerifyExpiry,
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        });
 
 const verifyUrl = `${process.env.APP_URL}/api/v1/auth/verify-email?token=${emailVerifyToken}`;
 
@@ -152,12 +200,14 @@ export const signin = async (
 
   return {
     user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    accessToken,
+    refreshToken,
   };
 };
 
 // ── Refresh Token ─────────────────────────────────────────────────────────────
 
-export const refreshToken = async (token: string) => {
+export const refreshToken = async (token: string, res: Response) => {
   try {
     const payload = jwt.verify(token, config.refreshSecret as string) as {
       sub: string;
@@ -167,7 +217,11 @@ export const refreshToken = async (token: string) => {
     if (!user) throw new ApiError(401, "User not found");
 
     const accessToken = generateAccessToken(user.id, user.role);
-    return { accessToken };
+    const newRefreshToken = generateRefreshToken(user.id);
+
+    setAuthCookies(res, accessToken, newRefreshToken);
+
+    return { accessToken, refreshToken: newRefreshToken };
   } catch {
     throw new ApiError(401, "Invalid or expired refresh token");
   }

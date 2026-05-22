@@ -130,6 +130,7 @@ stockAlerts        StockAlert[]
 questions          ProductQuestion[] @relation("CustomerQuestions")
   reviews Review[]
   cart Cart?
+  wishlist Wishlist?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
     @@index([email])
@@ -204,6 +205,7 @@ rating        Float @default(0)
   tags       ProductTag[]
 questions  ProductQuestion[]
 stockAlerts StockAlert[]
+wishlistItems WishlistItem[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
@@ -374,6 +376,27 @@ enum OrderItemStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+}
+
+model Wishlist {
+  id        String         @id @default(cuid())
+  userId    String         @unique
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     WishlistItem[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  wishlistId String
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([wishlistId, productId])
+  @@index([productId])
 }
 
 model Cart {

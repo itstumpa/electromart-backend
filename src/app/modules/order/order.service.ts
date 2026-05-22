@@ -1,5 +1,5 @@
 // src/app/modules/order/order.service.ts
-import { OrderStatus } from '@prisma/client';
+import { OrderItemStatus, OrderStatus } from '@prisma/client';
 import { emailQueue } from '../../../jobs/queues/email.queue';
 import { notificationQueue } from '../../../jobs/queues/notification.queue';
 import { prisma } from '../../../lib/prisma';
@@ -11,7 +11,21 @@ import { validateCoupon } from '../coupon/coupon.service';
 import { createNotification } from '../notification/notification.service';
 import { addStatusHistory } from '../order-tracking/orderTracking.service';
 
-export const placeOrder = async (customerId: string, couponCode?: string) => {
+type ShippingAddressInput = {
+  fullName: string;
+  phone: string;
+  street: string;
+  city: string;
+  state?: string;
+  zipCode?: string;
+  country: string;
+};
+
+export const placeOrder = async (
+  customerId: string,
+  shippingAddress: ShippingAddressInput,
+  couponCode?: string,
+) => {
 const cart = await prisma.cart.findUnique({
   where: { userId: customerId },
   include: {
@@ -97,6 +111,19 @@ items: {
         data: { stock: { decrement: item.quantity } },
       });
     }
+
+    await tx.orderAddress.create({
+      data: {
+        orderId: newOrder.id,
+        fullName: shippingAddress.fullName,
+        phone: shippingAddress.phone,
+        street: shippingAddress.street,
+        city: shippingAddress.city,
+        state: shippingAddress.state ?? "",
+        zipCode: shippingAddress.zipCode ?? "",
+        country: shippingAddress.country,
+      },
+    });
 
     await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
     
@@ -203,6 +230,8 @@ export const getMyOrders = async (userId: string, options: IOptions) => {
             store: { select: { id: true, name: true } },
           },
         },
+        shipping: true,
+        payment: true,
       },
       orderBy: { [sortBy]: sortOrder },
       skip,
@@ -229,6 +258,8 @@ export const getOrderById = async (orderId: string, userId: string, isAdmin: boo
         },
       },
       user: { select: { id: true, name: true, email: true } },
+      shipping: true,
+      payment: true,
     },
   });
 
@@ -239,6 +270,39 @@ export const getOrderById = async (orderId: string, userId: string, isAdmin: boo
   }
 
   return order;
+};
+
+// ADMIN — update order status
+export const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) throw new ApiError(404, "Order not found");
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.order.update({
+      where: { id: orderId },
+      data: { status },
+      include: {
+        items: {
+          include: {
+            product: { select: { id: true, name: true, images: { take: 1 } } },
+            store: { select: { id: true, name: true } },
+          },
+        },
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    await tx.orderItem.updateMany({
+      where: { orderId },
+      data: { status: status as OrderItemStatus },
+    });
+
+    return result;
+  });
+
+  await addStatusHistory(orderId, status, `Order status updated to ${status}`);
+
+  return updated;
 };
 
 // CUSTOMER — cancel order (only if PENDING)
@@ -394,6 +458,8 @@ export const getAllOrders = async (
             product: { select: { id: true, name: true } },
           },
         },
+        shipping: true,
+        payment: true,
       },
       orderBy: { [sortBy]: sortOrder },
       skip,

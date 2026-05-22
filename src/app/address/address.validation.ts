@@ -10,7 +10,7 @@ export const createAddressSchema = z.object({
     city:       z.string().min(2),
     state:      z.string().min(2),
     country:    z.string().default("Bangladesh"),
-    postalCode: z.string().min(3),
+    zipCode:    z.string().min(3),
     isDefault:  z.boolean().optional(),
   }),
 });
@@ -24,7 +24,7 @@ export const updateAddressSchema = z.object({
     city:       z.string().min(2).optional(),
     state:      z.string().min(2).optional(),
     country:    z.string().optional(),
-    postalCode: z.string().min(3).optional(),
+    zipCode:    z.string().min(3).optional(),
     isDefault:  z.boolean().optional(),
   }),
 });

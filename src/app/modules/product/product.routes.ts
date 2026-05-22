@@ -22,8 +22,6 @@ router.get('/recently-viewed', authenticate, ProductController.getRecentlyViewed
 router.get('/search', searchLimiter, ProductController.searchProducts);
 router.get('/search/suggestions', ProductController.getSearchSuggestions);
 router.get('/:slug', ProductController.getProductBySlug);
-router.get('/:id', ProductController.getProductById);
-
 
 // VENDOR only
 router.post(

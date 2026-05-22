@@ -29,13 +29,21 @@ if (config.node_env === 'development') {
   app.set('trust proxy', false);
 }
 
+const corsOrigins = Array.from(
+  new Set(
+    [config.client_url, config.frontend_url, "http://localhost:3000"].filter(
+      (origin): origin is string => Boolean(origin),
+    ),
+  ),
+);
+
 app.use(
   cors({
-    origin: config.client_url,
+    origin: corsOrigins.length > 1 ? corsOrigins : corsOrigins[0],
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE", "PUT"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 
 app.use(cookieParser());
@@ -61,7 +69,7 @@ app.use(slowQueryLogger);
 app.use(passport.initialize());
 
 // ── Rate Limiting ──────────────────────────────────────────────────────
-app.use(globalLimiter);
+// app.use(globalLimiter);
 
 // ── HTTP + Socket ──────────────────────────────────────────────────────
 const httpServer = http.createServer(app);

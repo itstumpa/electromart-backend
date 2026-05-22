@@ -101,6 +101,27 @@ type ProductCardWithRelations = Prisma.ProductGetPayload<{
   };
 }>;
 
+export const PRODUCT_LIST_INCLUDE = {
+  images: true,
+  category: { select: { id: true, name: true, slug: true } },
+  store: { select: { id: true, name: true, slug: true } },
+  brand: { select: { id: true, name: true, slug: true } },
+} as const;
+
+type ProductListItemRelations = Prisma.ProductGetPayload<{
+  select: {
+    id: true; name: true; slug: true; description: true;
+    price: true; originalPrice: true; stock: true;
+    storeId: true; categoryId: true; isActive: true;
+    rating: true; reviewCount: true; featured: true; bestseller: true;
+    createdAt: true; updatedAt: true;
+    images: { select: { id: true; url: true } };
+    category: { select: { id: true; name: true; slug: true } };
+    store: { select: { id: true; name: true; slug: true } };
+    brand: { select: { id: true; name: true; slug: true } };
+  };
+}>;
+
 
 export const formatProductResponse = (product: ProductWithRelations) => ({
   id: product.id,
@@ -148,6 +169,38 @@ export const formatProductResponse = (product: ProductWithRelations) => ({
     : null,
 });
 
+/** Frontend ProductListItemDto contract */
+export const formatProductListItemResponse = (product: ProductListItemRelations) => ({
+  id: product.id,
+  name: product.name,
+  slug: product.slug ?? "",
+  description: product.description,
+  price: product.price,
+  originalPrice: product.originalPrice ?? null,
+  stock: product.stock,
+  storeId: product.storeId,
+  categoryId: product.categoryId,
+  isActive: product.isActive,
+   featured: product.featured ?? false,      // ← is this there?
+  bestseller: product.bestseller ?? false, 
+  createdAt: product.createdAt,
+  updatedAt: product.updatedAt,
+  images: product.images.map((img) => ({
+    id: img.id,
+    url: img.url,
+  })),
+  category: {
+    id: product.category.id,
+    name: product.category.name,
+    slug: product.category.slug,
+  },
+  store: {
+    id: product.store.id,
+    name: product.store.name,
+    slug: product.store.slug,
+  },
+});
+
 export const formatProductListResponse = (product: ProductListWithRelations) => ({
   id: product.id,
   slug: product.slug,
@@ -172,7 +225,7 @@ export const formatProductListResponse = (product: ProductListWithRelations) => 
   orderCount: product.orderCount,
 });
 
-export const formatProductDetailResponse = (product: ProductDetailWithRelations ) => ({
+export const formatProductDetailResponse = (product: ProductDetailWithRelations) => ({
   id: product.id,
   name: product.name,
   slug: product.slug ?? "",
@@ -180,45 +233,43 @@ export const formatProductDetailResponse = (product: ProductDetailWithRelations 
   price: product.price,
   originalPrice: product.originalPrice,
   stock: product.stock,
+  storeId: product.storeId,
+  categoryId: product.categoryId,
+  isActive: product.isActive,
   rating: product.rating,
   reviewCount: product.reviewCount,
   featured: product.featured,
   bestseller: product.bestseller,
-  tags: product.tags.map(t => t.tag.name),
+  tags: product.tags.map((t) => t.tag.name),
   image: product.images?.[0]?.url ?? null,
-
   images: product.images?.map((img) => ({ id: img.id, url: img.url })) || [],
-
-brand: product.brand
-  ? {
-      id: product.brand.id,
-      name: product.brand.name,
-      slug: product.brand.slug ?? "",
-    }
-  : null,
-
+  brand: product.brand
+    ? {
+        id: product.brand.id,
+        name: product.brand.name,
+        slug: product.brand.slug ?? "",
+      }
+    : null,
   category: {
     id: product.category?.id || "",
     name: product.category?.name || "",
     slug: product.category?.slug || "",
   },
-
- specifications: product.specifications ?? [],
-
-    variants: product.variants.map((v) => ({
+  specifications: product.specifications ?? [],
+  variants: product.variants.map((v) => ({
     id: v.id,
     name: v.name,
     value: v.value,
     price: v.price,
     stock: v.stock,
   })),
-store: {
-  id: product.store.id,
-  name: product.store.name,
-  slug: product.store.slug,
-},
-
+  store: {
+    id: product.store.id,
+    name: product.store.name,
+    slug: product.store.slug,
+  },
   createdAt: product.createdAt,
+  updatedAt: product.updatedAt,
 });
 
 export const formatProductCardResponse = (

@@ -19,6 +19,7 @@ import { tagRoute } from "../modules/tag/tag.routes";
 import { productQARoute } from "../modules/product-qa/productQA.routes";
 import { stockAlertRoute } from "../modules/stock-alert/stockAlert.routes";
 import { leaderboardRoute } from "../modules/leaderboard/leaderboard.routes";
+import { wishlistRoute } from "../modules/wishlist/wishlist.routes";
 //import { authenticate, authorize } from "../middlewares/auth";
 
 const router = Router();
@@ -30,6 +31,7 @@ router.use("/users", UserRoutes);
 router.use("/stores", storeRoute);
 router.use("/products", productRoute);
 router.use("/category", categoryRoute);
+router.use("/categories", categoryRoute);
 router.use("/cart", cartRoute);
 router.use("/orders", orderRoute);
 router.use("/notifications", notificationRoute);
@@ -43,6 +45,7 @@ router.use("/tags", tagRoute);
 router.use("/qa", productQARoute);
 router.use("/stock-alerts", stockAlertRoute);
 router.use("/leaderboard", leaderboardRoute);
+router.use("/wishlist", wishlistRoute);
 
 
 

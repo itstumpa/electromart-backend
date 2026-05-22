@@ -7,6 +7,7 @@ export const signupSchema = z.object({
     email: z.string().email("Invalid email"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     role: z.enum(["CUSTOMER", "VENDOR"]).optional(),
+    storeName: z.string().min(2, "Store name must be at least 2 characters").optional(),
   }),
 });
 

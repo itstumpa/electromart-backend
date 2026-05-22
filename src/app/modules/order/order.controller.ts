@@ -7,7 +7,11 @@ import sendResponse from '../../../utils/sendResponse';
 import * as OrderService from './order.service';
 
 export const placeOrder = catchAsync(async (req: Request, res: Response) => {
-  const order = await OrderService.placeOrder(req.user!.id, req.body.couponCode);
+  const order = await OrderService.placeOrder(
+    req.user!.id,
+    req.body.shippingAddress,
+    req.body.couponCode,
+  );
   sendResponse(res, { statusCode: 201, success: true, message: 'Order placed successfully', data: order });
 });
 
@@ -18,9 +22,23 @@ export const getMyOrders = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const getOrderById = catchAsync(async (req: Request, res: Response) => {
-  const isAdmin = req.user!.role === 'ADMIN';
+  const role = req.user!.role;
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const order = await OrderService.getOrderById(req.params.id as string, req.user!.id, isAdmin);
   sendResponse(res, { statusCode: 200, success: true, message: 'Order fetched', data: order });
+});
+
+export const updateOrderStatus = catchAsync(async (req: Request, res: Response) => {
+  const order = await OrderService.updateOrderStatus(
+    req.params.id as string,
+    req.body.status as OrderStatus,
+  );
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Order status updated',
+    data: order,
+  });
 });
 
 export const cancelOrder = catchAsync(async (req: Request, res: Response) => {

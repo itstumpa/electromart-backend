@@ -4,12 +4,12 @@ import { uploadQueue } from '../../../jobs/queues/upload.queue';
 import { prisma } from '../../../lib/prisma';
 import ApiError from '../../../utils/apiErrors';
 import catchAsync from '../../../utils/catchAsync';
+import { generateUniqueSlug } from '../../../utils/generateUniqueSlug';
 import { type IPaginationOptions as IOptions } from '../../../utils/paginationHelper';
 import { addRecentlyViewed, getRecentlyViewed } from '../../../utils/recentlyViewed';
 import sendResponse from '../../../utils/sendResponse';
 import { deleteFromCloudinary, uploadToCloudinary } from '../../../utils/uploadToCloudinary';
 import * as ProductService from './product.service';
-import { generateUniqueSlug } from '../../../utils/generateUniqueSlug';
 
 export type ProductQuery = {
   categoryId?: string;
@@ -94,17 +94,7 @@ export const getProductBySlug = catchAsync(async (req: Request, res: Response) =
 });
 
 export const getAllProducts = catchAsync(async (req: Request, res: Response) => {
-  const {
-    categoryId,
-    storeId,
-    search,
-    minPrice,
-    maxPrice,
-    page,
-    limit,
-    sortBy,
-    sortOrder,
-  } = req.query;
+  const { categoryId, storeId, search, minPrice, maxPrice, page, limit, sortBy, sortOrder, onSale } = req.query;
 
   const result = await ProductService.getAllProducts(
     {
@@ -113,19 +103,20 @@ export const getAllProducts = catchAsync(async (req: Request, res: Response) => 
       search: search ? String(search) : undefined,
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      onSale: onSale === 'true',
     },
     {
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 10,
-      sortBy: sortBy ? String(sortBy) : "createdAt",
-      sortOrder: sortOrder === "asc" ? "asc" : "desc",
+      sortBy: sortBy ? String(sortBy) : 'createdAt',
+      sortOrder: sortOrder === 'asc' ? 'asc' : 'desc',
     }
   );
 
   sendResponse(res, {
     statusCode: 200,
     success: true,
-    message: "Products fetched successfully",
+    message: 'Products fetched successfully',
     meta: result.meta,
     data: result.data,
   });

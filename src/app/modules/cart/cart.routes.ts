@@ -6,6 +6,7 @@ import { authorize } from "../../middlewares/authorize";
 import { validate } from "../../middlewares/validate";
 import {
   addToCartSchema,
+  addToCartByProductIdSchema,
   updateCartItemSchema,
   mergeCartSchema,
 } from "./cart.validation";
@@ -19,6 +20,11 @@ router.get("/", CartController.viewCart);
 router.post("/", validate(addToCartSchema), CartController.addToCart);
 
 router.post("/merge", validate(mergeCartSchema), CartController.mergeCart);
+router.post(
+  "/:productId",
+  validate(addToCartByProductIdSchema),
+  CartController.addToCartByProductId,
+);
 router.patch("/:productId", validate(updateCartItemSchema), CartController.updateCartItem);
 
 router.delete("/:productId", CartController.removeFromCart);

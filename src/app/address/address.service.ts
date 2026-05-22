@@ -7,7 +7,7 @@ export const createAddress = async (
   data: {
     label: string; fullName: string; phone: string;
     street: string; city: string; state: string;
-    country: string; postalCode: string; isDefault?: boolean;
+    country: string; zipCode: string; isDefault?: boolean;
   }
 ) => {
   // if new address is default, unset all others first
@@ -47,7 +47,7 @@ export const updateAddress = async (
   data: Partial<{
     label: string; fullName: string; phone: string;
     street: string; city: string; state: string;
-    country: string; postalCode: string; isDefault: boolean;
+    country: string; zipCode: string; isDefault: boolean;
   }>
 ) => {
   const address = await prisma.address.findUnique({ where: { id } });

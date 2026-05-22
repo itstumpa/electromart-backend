@@ -4,7 +4,11 @@ import * as OrderController from "./order.controller";
 import { authenticate } from "../../middlewares/authenticate";
 import { authorize } from "../../middlewares/authorize";
 import { validate } from "../../middlewares/validate";
-import { placeOrderSchema, updateOrderItemStatusSchema } from "./order.validation";
+import {
+  placeOrderSchema,
+  updateOrderItemStatusSchema,
+  updateOrderStatusSchema,
+} from "./order.validation";
 
 const router = Router();
 
@@ -20,5 +24,12 @@ router.patch("/vendor/items/:itemId/status", authenticate, authorize("VENDOR"), 
 
 // ADMIN
 router.get("/", authenticate, authorize("ADMIN"), OrderController.getAllOrders);
+router.patch(
+  "/:id",
+  authenticate,
+  authorize("ADMIN"),
+  validate(updateOrderStatusSchema),
+  OrderController.updateOrderStatus,
+);
 
 export const orderRoute = router;

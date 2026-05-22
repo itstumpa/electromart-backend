@@ -6,10 +6,11 @@ import { notifyStockAlert } from '../stock-alert/stockAlert.service';
 
 import { CacheKeys } from '../../../utils/cacheKeys';
 import {
-  formatProductCardResponse,
   formatProductDetailResponse,
+  formatProductListItemResponse,
   formatProductListResponse,
   formatProductResponse,
+  PRODUCT_LIST_INCLUDE,
 } from './product.formatter';
 import cloudinary from '../../config/cloudinary';
 import { generateUniqueSlug } from '../../../utils/generateUniqueSlug';
@@ -20,6 +21,7 @@ type ProductQuery = {
   search?: string;
   minPrice?: number;
   maxPrice?: number;
+  onSale?: boolean;
 };
 
 type ProductOptions = IOptions;
@@ -101,29 +103,52 @@ export const getAllProducts = async (query: ProductQuery, options: ProductOption
             ...(query.maxPrice && { lte: query.maxPrice }),
           },
         }),
-      };
 
-      const [data, total] = await Promise.all([
-        prisma.product.findMany({
-          where,
+          ...(query.onSale && {
+    originalPrice: { not: null },
+    AND: [{
+      originalPrice: { not: null },
+    }],
+  }),
+};
 
-          include: {
-            images: {
-              take: 1,
-            },
+const [rawData, total] = await Promise.all([
+prisma.product.findMany({
+  where,
+  select: {
+    id: true,
+    name: true,
+    slug: true,
+    description: true,
+    price: true,
+    originalPrice: true, 
+    stock: true,
+    storeId: true,
+    categoryId: true,
+    isActive: true,
+    rating: true,          
+    reviewCount: true,
+    featured: true,
+    bestseller: true,
+    createdAt: true,
+    updatedAt: true,
+    images: { select: { id: true, url: true } },
+    category: { select: { id: true, name: true, slug: true } },
+    store: { select: { id: true, name: true, slug: true } },
+    brand: { select: { id: true, name: true, slug: true } },
+  },
+  orderBy: { [sortBy]: sortOrder },
+  skip,
+  take: limit,
+}),
+  prisma.product.count({ where }),
+]);
 
-            brand: true,
-            variants: true,
-          },
-
-          orderBy: { [sortBy]: sortOrder },
-
-          skip,
-          take: limit,
-        }),
-
-        prisma.product.count({ where }),
-      ]);
+const data = query.onSale
+  ? rawData.filter(
+      (p) => p.originalPrice !== null && p.originalPrice > p.price
+    )
+  : rawData;
 
       return {
         meta: {
@@ -132,7 +157,7 @@ export const getAllProducts = async (query: ProductQuery, options: ProductOption
           total,
           totalPages: Math.ceil(total / limit),
         },
-        data: data.map(formatProductCardResponse),
+        data: data.map(formatProductListItemResponse),
       };
     }
   );
@@ -235,11 +260,7 @@ export const searchProducts = async (query: any, options: IOptions) => {
       const [data, total] = await Promise.all([
         prisma.product.findMany({
           where,
-          include: {
-            images: { take: 1 },
-            category: { select: { id: true, name: true } },
-            store: { select: { id: true, name: true } },
-          },
+          include: PRODUCT_LIST_INCLUDE,
           orderBy: { [sortBy]: sortOrder },
           skip,
           take: limit,
@@ -249,7 +270,7 @@ export const searchProducts = async (query: any, options: IOptions) => {
 
       return {
         meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-        data,
+        data: data.map(formatProductListItemResponse),
       };
     }
   );
@@ -267,9 +288,13 @@ export const getSearchSuggestions = async (q: string) => {
         isActive: true,
         name: { contains: q, mode: 'insensitive' },
       },
-      select: { id: true, name: true, images: { take: 1 } },
+      select: {
+        id: true,
+        name: true,
+        images: { select: { url: true } },
+      },
       take: 8,
-    })
+    }),
   );
 };
 
@@ -404,7 +429,7 @@ export const getMyProducts = async (ownerId: string) => {
 
 // PUBLIC — featured products
 export const getFeaturedProducts = async () => {
-  return getOrSetCache(CacheKeys.FEATURED_PRODUCTS, 3600, () =>
+  const products = await getOrSetCache(CacheKeys.FEATURED_PRODUCTS, 3600, () =>
     prisma.product.findMany({
       where: {
         isActive: true,
@@ -412,52 +437,36 @@ export const getFeaturedProducts = async () => {
       },
       take: 12,
       orderBy: { createdAt: 'desc' },
-      include: {
-        images: { take: 1 },
-        category: { select: { name: true, slug: true } },
-        store: { select: { id: true, name: true } },
-      },
-    })
+      include: PRODUCT_LIST_INCLUDE,
+    }),
   );
+  return products.map(formatProductListItemResponse);
 };
 
 // PUBLIC — bestsellers (by order count)
 export const getBestsellers = async () => {
-  return getOrSetCache(
-    CacheKeys.BESTSELLERS,
-    1800, // 30 min
-    () =>
-      prisma.product.findMany({
-        where: { isActive: true },
-        take: 12,
-        orderBy: { rating: 'desc', reviewCount: 'desc', createdAt: 'desc' }, // track this in OrderItem
-        include: {
-          images: { take: 1 },
-          category: { select: { name: true, slug: true } },
-          store: { select: { id: true, name: true } },
-        },
-      })
+  const products = await getOrSetCache(CacheKeys.BESTSELLERS, 1800, () =>
+    prisma.product.findMany({
+      where: { isActive: true },
+      take: 12,
+      orderBy: { rating: 'desc', reviewCount: 'desc', createdAt: 'desc' },
+      include: PRODUCT_LIST_INCLUDE,
+    }),
   );
+  return products.map(formatProductListItemResponse);
 };
 
 // PUBLIC — new arrivals
 export const getNewArrivals = async () => {
-  return getOrSetCache(
-    CacheKeys.NEW_ARRIVALS,
-
-    1800,
-    () =>
-      prisma.product.findMany({
-        where: { isActive: true },
-        take: 12,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          images: { take: 1 },
-          category: { select: { name: true, slug: true } },
-          store: { select: { id: true, name: true } },
-        },
-      })
+  const products = await getOrSetCache(CacheKeys.NEW_ARRIVALS, 1800, () =>
+    prisma.product.findMany({
+      where: { isActive: true },
+      take: 12,
+      orderBy: { createdAt: 'desc' },
+      include: PRODUCT_LIST_INCLUDE,
+    }),
   );
+  return products.map(formatProductListItemResponse);
 };
 
 // PUBLIC — recommendations based on product

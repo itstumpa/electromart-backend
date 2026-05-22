@@ -39,14 +39,7 @@ export const authenticate = (
         req.user = normalizeUser(user);
         return next();
       }
-// Add to authenticate.ts (temporarily)
-console.log('Access token cookie:', req.cookies?.accessToken);
 
-// Decode without verifying (see payload structure)
-if (req.cookies?.accessToken) {
-  const decoded = jwt.decode(req.cookies.accessToken);
-  console.log('Decoded payload:', decoded);
-}
       // ─────────────────────────────
       // CASE 2: Try refresh token
       // ─────────────────────────────
@@ -81,8 +74,6 @@ if (req.cookies?.accessToken) {
           foundUser.id,
           foundUser.role,
         );
-console.log('All cookies:', req.cookies);
-console.log('Headers:', req.headers);
         const newRefreshToken = generateRefreshToken(foundUser.id);
 
         setAuthCookies(res, newAccessToken, newRefreshToken);

@@ -1,24 +1,35 @@
 import { Response } from "express";
+import config from "../app/config";
 
+const isProduction = config.node_env === "production";
+
+/**
+ * Same-origin (Next.js rewrite): lax works.
+ * Direct cross-origin API: use none + secure in production.
+ */
 const cookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "strict" as const,
+  secure: isProduction,
+  sameSite: (isProduction ? "none" : "lax") as "none" | "lax" | "strict",
   path: "/",
 };
 
-export function setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
+export function setAuthCookies(
+  res: Response,
+  accessToken: string,
+  refreshToken: string,
+) {
   res.cookie("accessToken", accessToken, {
     ...cookieOptions,
-    maxAge: 15 * 24 * 60 * 60 * 1000, // 15 days
+    maxAge: 15 * 24 * 60 * 60 * 1000,
   });
   res.cookie("refreshToken", refreshToken, {
     ...cookieOptions,
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    maxAge: 30 * 24 * 60 * 60 * 1000,
   });
 }
 
 export function clearAuthCookies(res: Response) {
-  res.clearCookie("accessToken", { path: "/" });
-  res.clearCookie("refreshToken", { path: "/" });
+  res.clearCookie("accessToken", { path: "/", sameSite: cookieOptions.sameSite });
+  res.clearCookie("refreshToken", { path: "/", sameSite: cookieOptions.sameSite });
 }

@@ -15,6 +15,14 @@ export const addToCart = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: 200, success: true, message: "Item added to cart", data: cart });
 });
 
+export const addToCartByProductId = catchAsync(async (req: Request, res: Response) => {
+  const productId = req.params.productId as string;
+  const quantity = req.body?.quantity ?? 1;
+  const variantId = req.body?.variantId as string | undefined;
+  const cart = await CartService.addToCart(req.user!.id, productId, quantity, variantId);
+  sendResponse(res, { statusCode: 200, success: true, message: "Item added to cart", data: cart });
+});
+
 export const updateCartItem = catchAsync(async (req: Request, res: Response) => {
   const cart = await CartService.updateCartItem(
     req.user!.id,

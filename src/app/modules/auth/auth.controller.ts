@@ -47,7 +47,7 @@ export const resendEmailVerification = catchAsync(
 // auth.controller.ts
 export const signin = catchAsync(async (req: Request, res: Response) => {
   const { email, password } = req.body;
-  const result = await AuthService.signin(email, password, res); // ✅ pass res
+  const result = await AuthService.signin(email, password, res);
   sendResponse(res, {
     statusCode: 200,
     success: true,
@@ -57,8 +57,15 @@ export const signin = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const refreshToken = catchAsync(async (req: Request, res: Response) => {
-  const { refreshToken } = req.body;
-  const result = await AuthService.refreshToken(refreshToken);
+  const token =
+    (req.body.refreshToken as string | undefined) ??
+    (req.cookies?.refreshToken as string | undefined);
+
+  if (!token) {
+    throw new ApiError(400, "Refresh token is required");
+  }
+
+  const result = await AuthService.refreshToken(token, res);
   sendResponse(res, {
     statusCode: 200,
     success: true,
