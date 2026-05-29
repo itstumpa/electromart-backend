@@ -148,7 +148,12 @@ model Store {
   products    Product[]
   orderItems OrderItem[]
   isActive    Boolean   @default(true)
-
+  coverImage   String?
+  specialty    String?
+  badge        String?
+  offers       String?
+  bio          String?
+  isApproved   Boolean  @default(false)
   // stats
   totalSales    Int      @default(0)
   totalRevenue  Decimal  @default(0)

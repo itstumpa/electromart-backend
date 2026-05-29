@@ -1,10 +1,10 @@
 // src/app/modules/review/review.routes.ts
 import { Router } from 'express';
+import { authenticate } from '../../middlewares/authenticate';
+import { authorize } from '../../middlewares/authorize';
+import { validate } from '../../middlewares/validate';
 import * as ReviewController from './review.controller';
 import { createReviewSchema, updateReviewSchema } from './review.validation';
-import { authenticate } from '../middlewares/authenticate';
-import { authorize } from '../middlewares/authorize';
-import { validate } from '../middlewares/validate';
 
 const router = Router();
 
