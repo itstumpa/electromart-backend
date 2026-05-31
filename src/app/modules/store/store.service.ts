@@ -157,3 +157,35 @@ export const getMyStore = async (ownerId: string) => {
 
   return store;
 };
+
+export async function getTopVendors() {
+  const stores = await prisma.store.findMany({
+    where: {
+      isActive: true,
+      isApproved: true,
+    },
+    orderBy: { totalSales: 'desc' },
+    take: 10,
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      logo: true,
+      coverImage: true,
+      specialty: true,
+      badge: true,
+      offers: true,
+      totalSales: true,
+      rating: true,
+      _count: {
+        select: { products: true },
+      },
+    },
+  });
+
+  return stores.map((s) => ({
+    ...s,
+    totalProducts: s._count.products,
+    _count: undefined,
+  }));
+}

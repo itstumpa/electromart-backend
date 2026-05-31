@@ -5,11 +5,13 @@ import { authenticate } from "../../middlewares/authenticate";
 import { authorize } from "../../middlewares/authorize";
 import { validate } from "../../middlewares/validate";
 import { createStoreSchema, updateStoreSchema } from "./store.validation";
+import { getTopVendors } from "./store.controller";
 
 const router = Router();
 
 // PUBLIC
-router.get("/", StoreController.getAllStores);
+router.get("/", StoreController.getAllStores)
+router.get('/top-vendors', getTopVendors);
 router.get("/:id", StoreController.getStoreById);
 
 // VENDOR only

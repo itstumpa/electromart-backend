@@ -131,6 +131,13 @@ questions          ProductQuestion[] @relation("CustomerQuestions")
   reviews Review[]
   cart Cart?
   wishlist Wishlist?
+
+    notifOrderUpdates   Boolean @default(true)
+  notifPromotions     Boolean @default(true)
+  notifWishlistSale   Boolean @default(true)
+  notifReviewReminder Boolean @default(false)
+  notifDeliveryAlerts Boolean @default(true)
+  notifWeeklyDigest   Boolean @default(false)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
     @@index([email])

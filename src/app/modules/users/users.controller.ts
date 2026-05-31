@@ -46,7 +46,7 @@ export const updateUser = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const deleteUser = catchAsync(async (req: Request, res: Response) => {
-  const result = await UserService.deleteUser(req.params.id as string, req.user!.role);
+  const result = await UserService.deleteUser(req.params.id as string, req.user!.role, req.user!.id);
   sendResponse(res, {
     statusCode: 200,        
     success: true,
@@ -62,5 +62,26 @@ export const changeUserRole = catchAsync(async (req: Request, res: Response) => 
     success: true,
     message: 'User role updated',
     data: user,
+  });
+});
+
+
+export const getNotificationPrefs = catchAsync(async (req: Request, res: Response) => {
+  const prefs = await UserService.getNotificationPrefs(req.user!.id);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Notification preferences fetched',
+    data: prefs,
+  });
+});
+
+export const updateNotificationPrefs = catchAsync(async (req: Request, res: Response) => {
+  const prefs = await UserService.updateNotificationPrefs(req.user!.id, req.body);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Notification preferences updated',
+    data: prefs,
   });
 });

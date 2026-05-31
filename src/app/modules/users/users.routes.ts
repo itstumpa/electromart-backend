@@ -7,6 +7,9 @@ import { authorize } from "../../middlewares/authorize";
 
 const router = Router();
 
+router.get('/me/notification-prefs', authenticate, UserController.getNotificationPrefs);
+router.patch('/me/notification-prefs', authenticate, UserController.updateNotificationPrefs);
+
 router.post("/", validate(createUserSchema), UserController.createUser);
 router.get("/", authenticate, authorize("ADMIN"), UserController.getAllUsers);
 router.get("/:id", authenticate, authorize("ADMIN"), UserController.getUserById);

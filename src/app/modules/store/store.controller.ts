@@ -34,3 +34,13 @@ export const getMyStore = catchAsync(async (req: Request, res: Response) => {
   const store = await StoreService.getMyStore(req.user!.id);
   sendResponse(res, { statusCode: 200, success: true, message: "Your store fetched", data: store });
 });
+
+export const getTopVendors = catchAsync(async (req: Request, res: Response) => {
+  const data = await StoreService.getTopVendors();
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Top vendors fetched successfully',
+    data,
+  });
+});

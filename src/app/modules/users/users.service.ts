@@ -98,20 +98,21 @@ export const updateUser = async (
 };
 
 // ADMIN — delete any user
-export const deleteUser = async (id: string, requesterRole: Role) => {
-  if (requesterRole !== Role.ADMIN) {
-    throw new ApiError(403, "Only admin can delete users");
+export const deleteUser = async (id: string, requesterRole: Role, requesterId: string) => {
+  const isAdmin = requesterRole === Role.ADMIN;
+  const isSelf  = requesterId === id;
+
+  if (!isAdmin && !isSelf) {
+    throw new ApiError(403, 'You can only delete your own account');
   }
 
-  const deleted = await prisma.user.deleteMany({
-    where: { id },
-  });
+  const deleted = await prisma.user.deleteMany({ where: { id } });
 
   if (deleted.count === 0) {
-    throw new ApiError(404, "User not found");
+    throw new ApiError(404, 'User not found');
   }
 
-  return { message: "User deleted successfully" };
+  return { message: 'User deleted successfully' };
 };
 
 // ADMIN — change user role
@@ -123,5 +124,47 @@ export const changeUserRole = async (id: string, role: Role) => {
     where: { id },
     data: { role },
     select: { id: true, name: true, email: true, role: true },
+  });
+};
+
+
+export const getNotificationPrefs = async (userId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      notifOrderUpdates: true,
+      notifPromotions: true,
+      notifWishlistSale: true,
+      notifReviewReminder: true,
+      notifDeliveryAlerts: true,
+      notifWeeklyDigest: true,
+    },
+  });
+  if (!user) throw new ApiError(404, 'User not found');
+  return user;
+};
+
+export const updateNotificationPrefs = async (
+  userId: string,
+  data: {
+    notifOrderUpdates?: boolean;
+    notifPromotions?: boolean;
+    notifWishlistSale?: boolean;
+    notifReviewReminder?: boolean;
+    notifDeliveryAlerts?: boolean;
+    notifWeeklyDigest?: boolean;
+  }
+) => {
+  return prisma.user.update({
+    where: { id: userId },
+    data,
+    select: {
+      notifOrderUpdates: true,
+      notifPromotions: true,
+      notifWishlistSale: true,
+      notifReviewReminder: true,
+      notifDeliveryAlerts: true,
+      notifWeeklyDigest: true,
+    },
   });
 };
