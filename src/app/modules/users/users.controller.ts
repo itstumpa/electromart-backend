@@ -3,6 +3,10 @@ import * as UserService from './users.service';
 import sendResponse from '../../../utils/sendResponse';
 import catchAsync from '../../../utils/catchAsync';
 import { Role } from '@prisma/client';
+import { uploadToCloudinary } from '../../../utils/uploadToCloudinary';
+import ApiError from '../../../utils/apiErrors';
+import { prisma } from '../../../lib/prisma';
+
 
 export const createUser = catchAsync(async (req: Request, res: Response) => {
   const user = await UserService.createUser(req.body);
@@ -41,6 +45,26 @@ export const updateUser = catchAsync(async (req: Request, res: Response) => {
     statusCode: 200,
     success: true,
     message: 'Profile updated successfully',
+    data: user,
+  });
+});
+
+export const uploadAvatar = catchAsync(async (req: Request, res: Response) => {
+  const file = req.file;
+  if (!file) throw new ApiError(400, 'No image provided');
+
+  const result = await uploadToCloudinary(file.buffer, 'electromart/avatars');
+
+  const user = await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { avatar: result.secure_url },
+    select: { id: true, name: true, email: true, avatar: true },
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Avatar uploaded successfully',
     data: user,
   });
 });

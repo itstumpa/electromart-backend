@@ -1,13 +1,19 @@
 // src/app/modules/address/address.service.ts
-import { prisma } from "../../lib/prisma";
-import ApiError from "../../utils/apiErrors";
+import { prisma } from '../../../lib/prisma';
+import ApiError from '../../../utils/apiErrors';
 
 export const createAddress = async (
   userId: string,
   data: {
-    label: string; fullName: string; phone: string;
-    street: string; city: string; state: string;
-    country: string; zipCode: string; isDefault?: boolean;
+    label: string;
+    fullName: string;
+    phone: string;
+    street: string;
+    city: string;
+    state: string;
+    country: string;
+    zipCode: string;
+    isDefault?: boolean;
   }
 ) => {
   // if new address is default, unset all others first
@@ -30,14 +36,14 @@ export const createAddress = async (
 export const getMyAddresses = async (userId: string) => {
   return prisma.address.findMany({
     where: { userId },
-    orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+    orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
   });
 };
 
 export const getAddressById = async (id: string, userId: string) => {
   const address = await prisma.address.findUnique({ where: { id } });
-  if (!address) throw new ApiError(404, "Address not found");
-  if (address.userId !== userId) throw new ApiError(403, "Access denied");
+  if (!address) throw new ApiError(404, 'Address not found');
+  if (address.userId !== userId) throw new ApiError(403, 'Access denied');
   return address;
 };
 
@@ -45,14 +51,20 @@ export const updateAddress = async (
   id: string,
   userId: string,
   data: Partial<{
-    label: string; fullName: string; phone: string;
-    street: string; city: string; state: string;
-    country: string; zipCode: string; isDefault: boolean;
+    label: string;
+    fullName: string;
+    phone: string;
+    street: string;
+    city: string;
+    state: string;
+    country: string;
+    zipCode: string;
+    isDefault: boolean;
   }>
 ) => {
   const address = await prisma.address.findUnique({ where: { id } });
-  if (!address) throw new ApiError(404, "Address not found");
-  if (address.userId !== userId) throw new ApiError(403, "Access denied");
+  if (!address) throw new ApiError(404, 'Address not found');
+  if (address.userId !== userId) throw new ApiError(403, 'Access denied');
 
   // if setting as default, unset others
   if (data.isDefault) {
@@ -67,8 +79,8 @@ export const updateAddress = async (
 
 export const deleteAddress = async (id: string, userId: string) => {
   const address = await prisma.address.findUnique({ where: { id } });
-  if (!address) throw new ApiError(404, "Address not found");
-  if (address.userId !== userId) throw new ApiError(403, "Access denied");
+  if (!address) throw new ApiError(404, 'Address not found');
+  if (address.userId !== userId) throw new ApiError(403, 'Access denied');
 
   await prisma.address.delete({ where: { id } });
 
@@ -76,7 +88,7 @@ export const deleteAddress = async (id: string, userId: string) => {
   if (address.isDefault) {
     const next = await prisma.address.findFirst({
       where: { userId },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: 'desc' },
     });
     if (next) {
       await prisma.address.update({
@@ -86,13 +98,13 @@ export const deleteAddress = async (id: string, userId: string) => {
     }
   }
 
-  return { message: "Address deleted" };
+  return { message: 'Address deleted' };
 };
 
 export const setDefaultAddress = async (id: string, userId: string) => {
   const address = await prisma.address.findUnique({ where: { id } });
-  if (!address) throw new ApiError(404, "Address not found");
-  if (address.userId !== userId) throw new ApiError(403, "Access denied");
+  if (!address) throw new ApiError(404, 'Address not found');
+  if (address.userId !== userId) throw new ApiError(403, 'Access denied');
 
   await prisma.address.updateMany({
     where: { userId },

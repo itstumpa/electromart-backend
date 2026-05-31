@@ -4,11 +4,14 @@ import { validate } from "../../middlewares/validate";
 import { createUserSchema, updateUserSchema } from "./users.validation";
 import { authenticate } from "../../middlewares/authenticate";
 import { authorize } from "../../middlewares/authorize";
+import { upload } from '../../middlewares/upload';
+
 
 const router = Router();
 
 router.get('/me/notification-prefs', authenticate, UserController.getNotificationPrefs);
 router.patch('/me/notification-prefs', authenticate, UserController.updateNotificationPrefs);
+router.patch('/me/avatar', authenticate, upload.single('avatar'), UserController.uploadAvatar);
 
 router.post("/", validate(createUserSchema), UserController.createUser);
 router.get("/", authenticate, authorize("ADMIN"), UserController.getAllUsers);

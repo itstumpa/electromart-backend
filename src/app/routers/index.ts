@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { addressRoute } from '../address/address.routes';
+import { addressRoute } from '../modules/address/address.routes';
 import { adminRoute } from '../modules/admin/admin.routes';
 import { authRoute } from '../modules/auth/auth.routes';
 import { cartRoute } from '../modules/cart/cart.routes';
