@@ -126,7 +126,7 @@ export const createSuperAdmin = async () => {
     }
 
     // Store 1
-    const store1Name = "TechZone Store";
+    const store1Name = "Man Store";
     const existingStore1 = await prisma.store.findFirst({
       where: { ownerId: vendor1.id },
     });
@@ -168,7 +168,7 @@ export const createSuperAdmin = async () => {
     }
 
     // Store 2
-    const store2Name = "GadgetHub Store";
+    const store2Name = "Seed Store";
     const existingStore2 = await prisma.store.findFirst({
       where: { ownerId: vendor2.id },
     });

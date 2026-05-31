@@ -20,6 +20,7 @@ import { tagRoute } from '../modules/tag/tag.routes';
 import UserRoutes from '../modules/users/users.routes';
 import { vendorAnalyticsRoute } from '../modules/vendor-analytics/vendorAnalytics.routes';
 import { wishlistRoute } from '../modules/wishlist/wishlist.routes';
+import { payoutRoute } from '../modules/payout/payout.routes';
 //import { authenticate, authorize } from "../middlewares/auth";
 
 const router = Router();
@@ -48,6 +49,7 @@ router.use('/leaderboard', leaderboardRoute);
 router.use('/wishlist', wishlistRoute);
 
 router.use('/admin', adminRoute);
-router.use('/vendor/analytics', vendorAnalyticsRoute);
+router.use('/vendor-analytics', vendorAnalyticsRoute);
+router.use('/payouts', payoutRoute);
 
 export default router;

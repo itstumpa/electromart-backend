@@ -34,8 +34,15 @@ router.post(
   ProductController.createProduct
 );
 router.get('/my/products', authenticate, authorize('VENDOR', 'CUSTOMER'), ProductController.getMyProducts);
-router.patch('/:id', authenticate, authorize('VENDOR', 'ADMIN'), validate(updateProductSchema), ProductController.updateProduct);
-
+router.patch(
+  '/:id',
+  authenticate,
+  authorize('VENDOR', 'ADMIN'),
+  upload.array('files', 10),
+  parseData,
+  validate(updateProductSchema),
+  ProductController.updateProduct,
+);
 // VENDOR — upload product images (max 5 at once)
 router.post(
   '/:id/images',
