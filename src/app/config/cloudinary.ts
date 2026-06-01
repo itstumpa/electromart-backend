@@ -8,4 +8,9 @@ cloudinary.config({
   api_secret: config.api_secret,
 });
 
+// cloudinary.ts
+export const deleteFromCloudinary = (publicId: string) => {
+  return cloudinary.uploader.destroy(publicId);
+};
+
 export default cloudinary;

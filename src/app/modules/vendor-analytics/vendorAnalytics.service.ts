@@ -38,7 +38,7 @@ export const getVendorAnalytics = async (ownerId: string) => {
           by: ['productId'],
           where: {
             storeId,
-            order: { status: 'DELIVERED' },
+             status: 'DELIVERED',
           },
           _sum: {
             quantity: true,
@@ -54,7 +54,7 @@ export const getVendorAnalytics = async (ownerId: string) => {
         prisma.orderItem.aggregate({
           where: {
             storeId,
-            order: { status: 'DELIVERED' },
+            status: 'DELIVERED',
           },
           _avg: { priceAtTime: true },
         }),
@@ -67,7 +67,7 @@ export const getVendorAnalytics = async (ownerId: string) => {
           FROM "OrderItem" oi
           JOIN "Order" o ON o.id = oi."orderId"
           WHERE oi."storeId" = ${storeId}
-            AND o.status = 'DELIVERED'
+            AND oi.status = 'DELIVERED'
             AND o."createdAt" >= NOW() - INTERVAL '6 months'
           GROUP BY month
           ORDER BY month ASC

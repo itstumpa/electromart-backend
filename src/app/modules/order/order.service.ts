@@ -10,6 +10,8 @@ import { sendEmail } from '../../../utils/sendEmail';
 import { validateCoupon } from '../coupon/coupon.service';
 import { createNotification } from '../notification/notification.service';
 import { addStatusHistory } from '../order-tracking/orderTracking.service';
+import { CacheKeys } from '../../../utils/cacheKeys';
+import { invalidateCache } from '../../../utils/cache';
 
 type ShippingAddressInput = {
   fullName: string;
@@ -387,6 +389,7 @@ export const updateOrderItemStatus = async (
     where: { id: orderItemId },
     data: { status },
   });
+    await invalidateCache(CacheKeys.VENDOR_ANALYTICS(store.id));
 
   const orderWithUser = await prisma.order.findUnique({
     where: { id: item.orderId },

@@ -2,6 +2,7 @@ import { prisma } from '../../../lib/prisma';
 import ApiError from '../../../utils/apiErrors';
 import { getOrSetCache, invalidateCache } from '../../../utils/cache';
 import { CacheKeys } from '../../../utils/cacheKeys';
+import { uploadToCloudinary,  deleteFromCloudinary, } from '../../../utils/uploadToCloudinary';
 
 // ─────────────────────────────────────────────
 // helper
@@ -97,7 +98,11 @@ export const getStoreById = async (id: string) => {
 export const updateStore = async (
   storeId: string,
   requesterId: string,
-  data: { name?: string; description?: string; logo?: string; isActive?: boolean }
+  data: { name?: string; description?: string; logo?: string; coverImage?: string;
+    specialty?: string;
+    badge?: string;
+    offers?: string; isActive?: boolean },
+     logoFile?: Express.Multer.File,
 ) => {
   const store = await prisma.store.findUnique({ where: { id: storeId } });
   if (!store) throw new ApiError(404, 'Store not found');
@@ -106,9 +111,22 @@ export const updateStore = async (
     throw new ApiError(403, 'You can only update your own store');
   }
 
+  let logoUrl = data.logo;
+ 
+  if (logoFile) {
+    // delete old logo from cloudinary if exists
+    if (store.logo) {
+      const publicId = store.logo.split('/').pop()?.split('.')[0];
+      if (publicId) await deleteFromCloudinary(`stores/${publicId}`).catch(() => null);
+    }
+    const uploaded = await uploadToCloudinary(logoFile.buffer, 'stores');
+    logoUrl = uploaded.secure_url;
+  }
+ 
+
   const updated = await prisma.store.update({
     where: { id: storeId },
-    data,
+    data: { ...data, logo: logoUrl },
   });
 
   // invalidate cache
@@ -118,6 +136,63 @@ export const updateStore = async (
   return updated;
 };
 
+
+// ── UPDATE store policies ─────────────────────────────────────
+export const updateStorePolicies = async (
+  storeId: string,
+  vendorId: string,
+  data: { returnPolicy: string; shippingPolicy: string },
+) => {
+  const store = await prisma.store.findUnique({ where: { id: storeId } });
+  if (!store)               throw new ApiError(404, 'Store not found');
+  if (store.ownerId !== vendorId) throw new ApiError(403, 'Forbidden');
+ 
+  return prisma.store.update({
+    where: { id: storeId },
+    data,
+  });
+};
+ 
+// ── PAUSE store (toggle isActive) ────────────────────────────
+export const pauseStore = async (storeId: string, vendorId: string) => {
+  const store = await prisma.store.findUnique({ where: { id: storeId } });
+  if (!store)               throw new ApiError(404, 'Store not found');
+  if (store.ownerId !== vendorId) throw new ApiError(403, 'Forbidden');
+ 
+  return prisma.store.update({
+    where: { id: storeId },
+    data: { isActive: !store.isActive },
+  });
+};
+ 
+// ── DELETE all products ───────────────────────────────────────
+export const deleteAllProducts = async (storeId: string, vendorId: string) => {
+  const store = await prisma.store.findUnique({ where: { id: storeId } });
+  if (!store)               throw new ApiError(404, 'Store not found');
+  if (store.ownerId !== vendorId) throw new ApiError(403, 'Forbidden');
+ 
+  const { count } = await prisma.product.deleteMany({ where: { storeId } });
+  return { deleted: count };
+};
+ 
+// ── CLOSE store (permanent) ───────────────────────────────────
+export const closeStore = async (storeId: string, vendorId: string) => {
+  const store = await prisma.store.findUnique({ where: { id: storeId } });
+  if (!store)               throw new ApiError(404, 'Store not found');
+  if (store.ownerId !== vendorId) throw new ApiError(403, 'Forbidden');
+ 
+  // deactivate all products first
+  await prisma.product.updateMany({
+    where: { storeId },
+    data: { isActive: false },
+  });
+ 
+  return prisma.store.update({
+    where: { id: storeId },
+    data: { isActive: false, isApproved: false },
+  });
+};
+ 
 // ─────────────────────────────────────────────
 // ADMIN — delete store
 // ─────────────────────────────────────────────
@@ -189,3 +264,4 @@ export async function getTopVendors() {
     _count: undefined,
   }));
 }
+

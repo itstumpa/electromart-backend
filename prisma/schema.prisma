@@ -145,6 +145,8 @@ model Store {
   isApproved   Boolean     @default(false)
   offers       String?
   specialty    String?
+  returnPolicy   String?
+  shippingPolicy String?
   orderItems   OrderItem[]
   products     Product[]
   owner        User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)

@@ -20,9 +20,34 @@ export const getStoreById = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const updateStore = catchAsync(async (req: Request, res: Response) => {
-  const store = await StoreService.updateStore(req.params.id as string, req.user!.id, req.body);
+  const store = await StoreService.updateStore(req.params.id as string, req.user!.id, req.body,  req.file, );
   console.log("USER:", req.user);
   sendResponse(res, { statusCode: 200, success: true, message: "Store updated successfully", data: store });
+});
+
+export const updateStorePolicies = catchAsync(async (req: Request, res: Response) => {
+  const data = await StoreService.updateStorePolicies(
+    req.params.id as string,
+    req.user!.id,
+    req.body,
+  );
+  sendResponse(res, { statusCode: 200, success: true, message: 'Policies updated', data });
+});
+ 
+export const pauseStore = catchAsync(async (req: Request, res: Response) => {
+  const data = await StoreService.pauseStore(req.params.id as string, req.user!.id);
+  const message = data.isActive ? 'Store resumed' : 'Store paused';
+  sendResponse(res, { statusCode: 200, success: true, message, data });
+});
+ 
+export const deleteAllProducts = catchAsync(async (req: Request, res: Response) => {
+  const data = await StoreService.deleteAllProducts(req.params.id as string, req.user!.id);
+  sendResponse(res, { statusCode: 200, success: true, message: `${data.deleted} products deleted`, data });
+});
+ 
+export const closeStore = catchAsync(async (req: Request, res: Response) => {
+  const data = await StoreService.closeStore(req.params.id as string, req.user!.id);
+  sendResponse(res, { statusCode: 200, success: true, message: 'Store closed', data });
 });
 
 export const deleteStore = catchAsync(async (req: Request, res: Response) => {
