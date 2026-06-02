@@ -29,3 +29,23 @@ export const updateStorePoliciesSchema = z.object({
     shippingPolicy: z.string().min(1, 'Shipping policy is required'),
   }),
 });
+
+export const updateStoreSettingsSchema = z.object({
+  body: z.object({
+    name: z.string().optional(),
+    taxId: z.string().optional(),
+    currency: z.string().optional(),
+    payoutCycle: z.string().optional(),
+    minPayout: z.string().optional(),
+    autoAcceptOrders: z.boolean().optional(),
+    autoUpdateStock: z.boolean().optional(),
+    notifNewOrder: z.boolean().optional(),
+    notifOrderCancelled: z.boolean().optional(),
+    notifLowStock: z.boolean().optional(),
+    notifNewReview: z.boolean().optional(),
+    notifPayoutSent: z.boolean().optional(),
+    notifReturnRequest: z.boolean().optional(),
+    notifWeeklyReport: z.boolean().optional(),
+    notifMarketingTips: z.boolean().optional(),
+  }),
+});

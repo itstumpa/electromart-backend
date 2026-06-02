@@ -265,3 +265,55 @@ export async function getTopVendors() {
   }));
 }
 
+export const updateStoreSettings = async (
+  storeId: string,
+  vendorId: string,
+  data: {
+    name?: string;
+    taxId?: string;
+    currency?: string;
+    payoutCycle?: string;
+    minPayout?: string;
+    autoAcceptOrders?: boolean;
+    autoUpdateStock?: boolean;
+    notifNewOrder?: boolean;
+    notifOrderCancelled?: boolean;
+    notifLowStock?: boolean;
+    notifNewReview?: boolean;
+    notifPayoutSent?: boolean;
+    notifReturnRequest?: boolean;
+    notifWeeklyReport?: boolean;
+    notifMarketingTips?: boolean;
+  }
+) => {
+  const store = await prisma.store.findUnique({ where: { id: storeId } });
+  if (!store) throw new ApiError(404, 'Store not found');
+  if (store.ownerId !== vendorId) throw new ApiError(403, 'Forbidden');
+
+  const updated = await prisma.store.update({
+    where: { id: storeId },
+    data,
+  });
+
+  await invalidateCache(CacheKeys.SINGLE_STORE(storeId));
+  await invalidateCache(CacheKeys.ALL_STORES);
+
+  return updated;
+};
+
+// ADMIN — approve or revoke store approval
+export const approveStore = async (storeId: string, isApproved: boolean) => {
+  const store = await prisma.store.findUnique({ where: { id: storeId } });
+  if (!store) throw new ApiError(404, 'Store not found');
+
+  const updated = await prisma.store.update({
+    where: { id: storeId },
+    data: { isApproved },
+  });
+
+  await invalidateCache(CacheKeys.SINGLE_STORE(storeId));
+  await invalidateCache(CacheKeys.ALL_STORES);
+
+  return updated;
+};
+

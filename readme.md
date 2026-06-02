@@ -13,7 +13,7 @@ npx prisma generate
 
 ```
 npm install -D ts-node
-npx tsx prisma/admin-seed.ts
+npx tsx prisma/seed.ts
 
 
 <!-- for task kill  -->

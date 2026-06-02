@@ -119,9 +119,10 @@ model User {
   stockAlerts              StockAlert[]
   store                    Store?
   wishlist                 Wishlist?
-  avatar  String?
+  avatar   String?
   website  String?
   location String?
+  isBanned Boolean  @default(false)
 
   @@index([email])
   @@index([role])
@@ -152,7 +153,24 @@ model Store {
   orderItems   OrderItem[]
   products     Product[]
   owner        User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-payouts Payout[]
+  payouts Payout[]
+
+  // Vendor settings
+  taxId             String?
+  currency          String   @default("USD")
+  payoutCycle       String   @default("monthly")
+  minPayout         String   @default("100")
+  autoAcceptOrders  Boolean  @default(true)
+  autoUpdateStock   Boolean  @default(true)
+  notifNewOrder        Boolean @default(true)
+  notifOrderCancelled  Boolean @default(true)
+  notifLowStock        Boolean @default(true)
+  notifNewReview       Boolean @default(true)
+  notifPayoutSent      Boolean @default(true)
+  notifReturnRequest   Boolean @default(true)
+  notifWeeklyReport    Boolean @default(false)
+  notifMarketingTips   Boolean @default(false)
+
   @@index([ownerId])
   @@index([isActive])
   @@index([slug])

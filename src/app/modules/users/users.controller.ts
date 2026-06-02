@@ -109,3 +109,13 @@ export const updateNotificationPrefs = catchAsync(async (req: Request, res: Resp
     data: prefs,
   });
 });
+
+export const banUser = catchAsync(async (req: Request, res: Response) => {
+  const user = await UserService.banUser(req.params.id as string);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: user.isBanned ? 'User banned' : 'User unbanned',
+    data: user,
+  });
+});

@@ -16,6 +16,7 @@ router.patch('/me/avatar', authenticate, upload.single('avatar'), UserController
 router.post("/", validate(createUserSchema), UserController.createUser);
 router.get("/", authenticate, authorize("ADMIN"), UserController.getAllUsers);
 router.get("/:id", authenticate, authorize("ADMIN"), UserController.getUserById);
+router.patch("/:id/ban", authenticate, authorize("ADMIN"), UserController.banUser);
 router.patch("/:id", authenticate, validate(updateUserSchema), UserController.updateUser);
 router.delete("/:id", authenticate, authorize("ADMIN", "CUSTOMER"), UserController.deleteUser);
 

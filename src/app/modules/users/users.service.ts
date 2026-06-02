@@ -41,7 +41,10 @@ export const getAllUsers = async () => {
       name: true,
       email: true,
       role: true,
+      phone: true,
+      avatar: true,
       isEmailVerified: true,
+      isBanned: true,
       createdAt: true,
     },
     orderBy: { createdAt: 'desc' },
@@ -170,5 +173,17 @@ export const updateNotificationPrefs = async (
       notifDeliveryAlerts: true,
       notifWeeklyDigest: true,
     },
+  });
+};
+
+// ADMIN — ban or unban a user
+export const banUser = async (id: string) => {
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) throw new ApiError(404, 'User not found');
+
+  return prisma.user.update({
+    where: { id },
+    data: { isBanned: !user.isBanned },
+    select: { id: true, name: true, email: true, role: true, isBanned: true },
   });
 };

@@ -4,7 +4,7 @@ import * as StoreController from "./store.controller";
 import { authenticate } from "../../middlewares/authenticate";
 import { authorize } from "../../middlewares/authorize";
 import { validate } from "../../middlewares/validate";
-import { createStoreSchema, updateStoreSchema, updateStorePoliciesSchema, } from "./store.validation";
+import { createStoreSchema, updateStoreSchema, updateStorePoliciesSchema, updateStoreSettingsSchema } from "./store.validation";
 import { getTopVendors } from "./store.controller";
 import { upload } from '../../middlewares/upload';
 import { parseData } from '../../middlewares/parser';
@@ -49,5 +49,7 @@ router.patch(
 router.patch('/:id/pause',           authenticate, authorize('VENDOR'), StoreController.pauseStore);
 router.delete('/:id/products',       authenticate, authorize('VENDOR'), StoreController.deleteAllProducts);
 router.delete('/:id/close',          authenticate, authorize('VENDOR'), StoreController.closeStore);
+router.patch('/:id/settings',        authenticate, authorize('VENDOR'), validate(updateStoreSettingsSchema), StoreController.updateStoreSettings);
+router.patch('/:id/approve',         authenticate, authorize('ADMIN'), StoreController.approveStore);
 
 export const storeRoute = router;
