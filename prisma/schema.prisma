@@ -120,6 +120,8 @@ model User {
   store                    Store?
   wishlist                 Wishlist?
   avatar  String?
+  website  String?
+  location String?
 
   @@index([email])
   @@index([role])

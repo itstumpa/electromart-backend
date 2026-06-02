@@ -73,7 +73,7 @@ export const updateUser = async (
   targetId: string,
   requesterId: string,
   requesterRole: Role,
-  data: { name?: string; email?: string }
+  data: { name?: string; email?: string, phone?: string; avatar?: string; website?: string; location?: string }
 ) => {
   const isAdmin = requesterRole === Role.ADMIN;
   const isSelf = targetId === requesterId;
@@ -93,6 +93,10 @@ export const updateUser = async (
       name: true,
       email: true,
       role: true,
+      phone: true,
+      avatar: true,
+      website: true,
+      location: true,
     },
   });
 };
