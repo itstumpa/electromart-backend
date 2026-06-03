@@ -31,7 +31,7 @@ if (config.node_env === 'development') {
 
 const corsOrigins = Array.from(
   new Set(
-    [config.client_url, config.frontend_url, "http://localhost:3000"].filter(
+    [config.client_url, config.frontend_url, process.env.LOCAL_FRONTEND_URL,].filter(
       (origin): origin is string => Boolean(origin),
     ),
   ),
