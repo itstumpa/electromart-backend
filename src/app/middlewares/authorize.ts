@@ -8,11 +8,7 @@ export const authorize =
     if (!req.user) {
       return next(new ApiError(401, "Unauthorized"));
     }
-    console.log("===== AUTH DEBUG =====");
-console.log("req.user:", req.user);
-console.log("role:", (req.user as any)?.role);
-console.log("type:", typeof (req.user as any)?.role);
-console.log("======================");
+
 
     // ─────────────────────────────
     // Normalize user role safely
