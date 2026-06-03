@@ -87,7 +87,7 @@ export const getDashboardOverview = async () => {
             TO_CHAR(DATE_TRUNC('month', "createdAt"), 'YYYY-MM') AS month,
             SUM(total)::float                                      AS revenue,
             COUNT(*)                                               AS orders
-          FROM orders
+          FROM "Order"
           WHERE "createdAt" >= NOW() - INTERVAL '6 months'
           GROUP BY DATE_TRUNC('month', "createdAt")
           ORDER BY DATE_TRUNC('month', "createdAt") ASC

@@ -4,12 +4,13 @@ import { z } from "zod";
 export const createCategorySchema = z.object({
   body: z.object({
     name: z.string().min(2, "Category name must be at least 2 characters"),
+    image: z.string().optional(),
   }),
 });
 
 export const updateCategorySchema = z.object({
   body: z.object({
     name: z.string().min(2).optional(),
-    image: z.string().url().optional(),
+    image: z.string().optional(),
   }),
 }); 

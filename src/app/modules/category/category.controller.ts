@@ -5,11 +5,11 @@ import sendResponse from "../../../utils/sendResponse";
 import * as CategoryService from "./category.service";
 
 export const createCategory = catchAsync(async (req: Request, res: Response) => {
-  const { name } = req.body;
+  const { name, image: bodyImage } = req.body;
 
   const files = (req.files as Express.Multer.File[]) || [];
 
-  const image = files[0]?.path;
+  const image = files[0]?.path || bodyImage;
 
   const category = await CategoryService.createCategory(
     name,
@@ -36,11 +36,11 @@ export const getCategoryById = catchAsync(async (req: Request, res: Response) =>
 
 export const updateCategory = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name } = req.body;
+  const { name, image: bodyImage } = req.body;
 
   const files = (req.files as Express.Multer.File[]) || [];
 
-  const image = files[0]?.path;
+  const image = files[0]?.path || bodyImage;
 
   const result = await CategoryService.updateCategory(
     id as string,

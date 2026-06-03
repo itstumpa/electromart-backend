@@ -85,7 +85,7 @@ export const updateStoreSettings = catchAsync(async (req: Request, res: Response
 });
 
 export const approveStore = catchAsync(async (req: Request, res: Response) => {
-  const { isApproved } = req.body;
+  const { isApproved } = req.body || {};
   const store = await StoreService.approveStore(req.params.id as string, Boolean(isApproved));
   sendResponse(res, {
     statusCode: 200,
