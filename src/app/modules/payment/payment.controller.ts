@@ -26,21 +26,21 @@ export const sslCommerzSuccess = catchAsync(async (req: Request, res: Response) 
   const result = await PaymentService.handleSSLCommerzSuccess(req.body);
   // redirect to frontend success page
   res.redirect(
-    `${process.env.BACKEND_URL}/payment/success?orderId=${result.orderId}`
+    `${process.env.FRONTEND_URL}/payment/success?orderId=${result.orderId}`
   );
 });
 
 export const sslCommerzFail = catchAsync(async (req: Request, res: Response) => {
   const result = await PaymentService.handleSSLCommerzFail(req.body);
   res.redirect(
-    `${process.env.BACKEND_URL}/payment/fail?orderId=${result.orderId}`
+    `${process.env.FRONTEND_URL}/payment/fail?orderId=${result.orderId}`
   );
 });
 
 export const sslCommerzCancel = catchAsync(async (req: Request, res: Response) => {
   const orderId = req.body.tran_id;
   res.redirect(
-    `${process.env.BACKEND_URL}/payment/cancel?orderId=${orderId}`
+    `${process.env.FRONTEND_URL}/payment/cancel?orderId=${orderId}`
   );
 });
 
