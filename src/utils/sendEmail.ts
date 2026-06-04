@@ -44,7 +44,7 @@ export const sendEmail = async (options: EmailOptions): Promise<void> => {
     subject: options.subject,
     htmlContent: options.html,
     sender: {
-      name: "LiveChat",
+      name: "ElectroMart",
       email: process.env.BREVO_SENDER_EMAIL as string,
     },
   });
