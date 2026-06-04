@@ -111,7 +111,7 @@ export const signup = async (data: {
           },
         });
 
-const verifyUrl = `${process.env.APP_URL}/api/v1/auth/verify-email?token=${emailVerifyToken}`;
+const verifyUrl = `${process.env.BACKEND_URL}/api/v1/auth/verify-email?token=${emailVerifyToken}`;
 
   if (process.env.REDIS_URL) {
     await emailQueue.add("verify-email", {
@@ -167,7 +167,7 @@ export const resendEmailVerification = async (email: string) => {
     data: { emailVerifyToken, emailVerifyExpiry },
   });
 
-const verifyUrl = `${process.env.APP_URL}/api/v1/auth/verify-email?token=${emailVerifyToken}`;
+const verifyUrl = `${process.env.BACKEND_URL}/api/v1/auth/verify-email?token=${emailVerifyToken}`;
   await sendEmail({
     to: user.email,
     subject: "Verify your ElectroMart account",
