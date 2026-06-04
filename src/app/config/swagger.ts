@@ -1,7 +1,7 @@
 // src/config/swagger.ts
 import swaggerJsdoc from "swagger-jsdoc";
 const API_VERSION_PREFIX = "/api/v1";
-const LOCAL_SERVER_URL = `http://localhost:5000${API_VERSION_PREFIX}`;
+const LOCAL_SERVER_URL = `${process.env.BACKEND_URL || ""}${API_VERSION_PREFIX}`;
 
 const options: swaggerJsdoc.Options = {
   definition: {
