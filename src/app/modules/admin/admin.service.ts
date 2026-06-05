@@ -117,7 +117,7 @@ export const getDashboardOverview = async () => {
 
       // format monthly revenue for chart
       const revenueData = monthlyRevenueRaw.map((r) => ({
-        month: r.month, // "2024-03"
+        month: r.month, // "2026-03"
         revenue: Number(r.revenue),
         orders: Number(r.orders),
       }));

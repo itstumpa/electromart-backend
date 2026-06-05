@@ -1,6 +1,6 @@
 import { prisma } from '../../../lib/prisma';
 import ApiError from '../../../utils/apiErrors';
-import { getOrSetCache, invalidateCachePattern } from '../../../utils/cache';
+import { getOrSetCache, invalidateCache, invalidateCachePattern } from '../../../utils/cache';
 import { CacheKeys } from '../../../utils/cacheKeys';
 import { paginationHelper, type IPaginationOptions as IOptions } from '../../../utils/paginationHelper';
 // ─────────────────────────────────────────────
@@ -44,8 +44,10 @@ export const createReview = async (customerId: string, productId: string, data: 
     data: { customerId, productId, ...data },
   });
 
+  await updateProductStats(productId);
+
   // invalidate product reviews cache
-  await invalidateCachePattern(`reviews:${productId}:*`);
+  await invalidateCachePattern(`reviews:product:${productId}:*`);
 
   return review;
 };
@@ -61,6 +63,7 @@ export const getProductReviews = async (productId: string, options: IOptions) =>
   return getOrSetCache(CacheKeys.PRODUCT_REVIEWS(cacheKey), 300, async () => {
     const product = await prisma.product.findUnique({
       where: { id: productId },
+      select: { rating: true },
     });
 
     if (!product) throw new ApiError(404, 'Product not found');
@@ -71,7 +74,7 @@ export const getProductReviews = async (productId: string, options: IOptions) =>
       prisma.review.findMany({
         where,
         include: {
-          customer: { select: { id: true, name: true } },
+          customer: { select: { id: true, name: true, avatar: true } },
         },
         orderBy: { [sortBy]: sortOrder },
         skip,
@@ -79,8 +82,6 @@ export const getProductReviews = async (productId: string, options: IOptions) =>
       }),
       prisma.review.count({ where }),
     ]);
-
-    const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
 
     return {
       meta: {
@@ -91,7 +92,7 @@ export const getProductReviews = async (productId: string, options: IOptions) =>
       },
       data: {
         reviews,
-        averageRating: Number(avgRating.toFixed(1)),
+        averageRating: Number((product?.rating ?? 0).toFixed(1)),
         totalReviews: total,
       },
     };
@@ -117,7 +118,9 @@ export const updateReview = async (reviewId: string, customerId: string, data: {
     data,
   });
 
-  await invalidateCachePattern(`reviews:${review.productId}:*`);
+  await updateProductStats(review.productId);
+
+  await invalidateCachePattern(`reviews:product:${review.productId}:*`);
 
   return updated;
 };
@@ -140,7 +143,9 @@ export const deleteReview = async (reviewId: string, requesterId: string, isAdmi
     where: { id: reviewId },
   });
 
-  await invalidateCachePattern(`reviews:${review.productId}:*`);
+  await updateProductStats(review.productId);
+
+  await invalidateCachePattern(`reviews:product:${review.productId}:*`);
 
   return { message: 'Deleted successfully' };
 };
@@ -156,6 +161,7 @@ export const getMyReviews = async (customerId: string) => {
         select: {
           id: true,
           name: true,
+          slug: true,
           images: { take: 1 },
         },
       },
@@ -172,14 +178,49 @@ export const getLatestReviews = async (limit = 10) => {
     take: limit,
     orderBy: { createdAt: 'desc' },
     include: {
-      customer: { select: { id: true, name: true } },
+      customer: { select: { id: true, name: true, avatar: true } },
       product: {
         select: {
           id: true,
           name: true,
+          slug: true,
           images: { take: 1 },
         },
       },
     },
   });
+};
+
+const updateProductStats = async (productId: string) => {
+  const reviews = await prisma.review.findMany({
+    where: { productId },
+    select: { rating: true },
+  });
+
+  const reviewCount = reviews.length;
+  const averageRating = reviewCount > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount : 0;
+
+  await prisma.product.update({
+    where: { id: productId },
+    data: {
+      rating: averageRating,
+      reviewCount,
+    },
+  });
+
+  await invalidateCache(CacheKeys.SINGLE_PRODUCT(productId));
+  
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { slug: true },
+  });
+  if (product?.slug) {
+    await invalidateCache(CacheKeys.PRODUCT_SLUG(product.slug));
+  }
+  
+  await invalidateCachePattern('products:list:*');
+  await invalidateCachePattern('products:search:*');
+  await invalidateCache(CacheKeys.FEATURED_PRODUCTS);
+  await invalidateCache(CacheKeys.BESTSELLERS);
+  await invalidateCache(CacheKeys.NEW_ARRIVALS);
 };

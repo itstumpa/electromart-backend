@@ -167,7 +167,7 @@ const data = query.onSale
 
 export const getProductBySlug = async (slug: string) => {
   return getOrSetCache(CacheKeys.PRODUCT_SLUG(slug), 600, async () => {
-    const product = await prisma.product.findUnique({
+    let product = await prisma.product.findUnique({
       where: { slug },
       include: {
         images: true,
@@ -185,6 +185,27 @@ export const getProductBySlug = async (slug: string) => {
         },
       },
     });
+
+    if (!product) {
+      product = await prisma.product.findUnique({
+        where: { id: slug },
+        include: {
+          images: true,
+          variants: true,
+          category: true,
+          brand: true,
+          tags: {
+            include: {
+              tag: true,
+            },
+          },
+          specifications: true,
+          store: {
+            select: { id: true, name: true, slug: true },
+          },
+        },
+      });
+    }
 
     if (!product) throw new ApiError(404, 'Product not found');
     if (!product.slug) throw new ApiError(500, 'Product slug missing');
