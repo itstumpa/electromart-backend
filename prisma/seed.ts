@@ -551,6 +551,7 @@ async function seedOrders(vendorIdToStoreId: Map<string, string>) {
         tax: toDecimal(order.tax),
         discount: toDecimal(order.discount),
         total: toDecimal(order.total),
+        createdAt: new Date(order.createdAt),
         updatedAt: new Date(order.updatedAt),
       },
     });

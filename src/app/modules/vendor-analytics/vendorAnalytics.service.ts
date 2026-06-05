@@ -38,7 +38,7 @@ export const getVendorAnalytics = async (ownerId: string) => {
           by: ['productId'],
           where: {
             storeId,
-             status: 'DELIVERED',
+            status: 'DELIVERED',
           },
           _sum: {
             quantity: true,
@@ -59,19 +59,19 @@ export const getVendorAnalytics = async (ownerId: string) => {
           _avg: { priceAtTime: true },
         }),
 
-        // monthly revenue
-        prisma.$queryRaw<{ month: string; revenue: number }[]>`
-          SELECT
-            TO_CHAR(o."createdAt", 'YYYY-MM') AS month,
-            SUM(oi."priceAtTime" * oi.quantity) AS revenue
-          FROM "OrderItem" oi
-          JOIN "Order" o ON o.id = oi."orderId"
-          WHERE oi."storeId" = ${storeId}
-            AND oi.status = 'DELIVERED'
-            AND o."createdAt" >= NOW() - INTERVAL '6 months'
-          GROUP BY month
-          ORDER BY month ASC
-        `,
+        prisma.$queryRaw<{ month: string; revenue: number; orders: number }[]>`
+  SELECT
+    TO_CHAR(o."createdAt", 'YYYY-MM') AS month,
+    SUM(oi."priceAtTime" * oi.quantity) AS revenue,
+    COUNT(DISTINCT oi."orderId") AS orders
+  FROM "OrderItem" oi
+  JOIN "Order" o ON o.id = oi."orderId"
+  WHERE oi."storeId" = ${storeId}
+    AND oi.status != 'CANCELLED'
+    AND o."createdAt" >= NOW() - INTERVAL '6 months'
+  GROUP BY month
+  ORDER BY month ASC
+`,
       ]);
 
       // ─────────────────────────────
@@ -122,6 +122,7 @@ export const getVendorAnalytics = async (ownerId: string) => {
         monthlyRevenue: monthlyRevenue.map((r) => ({
           month: r.month,
           revenue: Number(r.revenue),
+          orders: Number(r.orders),
         })),
       };
     }

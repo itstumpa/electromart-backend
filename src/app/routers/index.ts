@@ -21,6 +21,7 @@ import UserRoutes from '../modules/users/users.routes';
 import { vendorAnalyticsRoute } from '../modules/vendor-analytics/vendorAnalytics.routes';
 import { wishlistRoute } from '../modules/wishlist/wishlist.routes';
 import { payoutRoute } from '../modules/payout/payout.routes';
+import { brandRoute } from '../modules/brand/brand.routes';
 //import { authenticate, authorize } from "../middlewares/auth";
 
 const router = Router();
@@ -51,5 +52,6 @@ router.use('/wishlist', wishlistRoute);
 router.use('/admin', adminRoute);
 router.use('/vendor-analytics', vendorAnalyticsRoute);
 router.use('/payouts', payoutRoute);
+router.use('/brands', brandRoute );
 
 export default router;

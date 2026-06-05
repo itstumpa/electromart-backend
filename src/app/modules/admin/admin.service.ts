@@ -115,12 +115,25 @@ export const getDashboardOverview = async () => {
         }),
       );
 
-      // format monthly revenue for chart
-      const revenueData = monthlyRevenueRaw.map((r) => ({
-        month: r.month, // "2026-03"
-        revenue: Number(r.revenue),
-        orders: Number(r.orders),
-      }));
+      // Generate last 6 months list: ["YYYY-MM", ...]
+      const last6Months: string[] = [];
+      const now = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        last6Months.push(`${year}-${month}`);
+      }
+
+      // format monthly revenue for chart, filling in missing months with 0
+      const revenueData = last6Months.map((m) => {
+        const found = monthlyRevenueRaw.find((r) => r.month === m);
+        return {
+          month: m,
+          revenue: found ? Number(found.revenue) : 0,
+          orders: found ? Number(found.orders) : 0,
+        };
+      });
 
       const formattedOrdersByStatus = ordersByStatus.reduce(
         (acc: Record<string, number>, item) => {
