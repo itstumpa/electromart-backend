@@ -470,7 +470,11 @@ export const getBestsellers = async () => {
     prisma.product.findMany({
       where: { isActive: true },
       take: 12,
-      orderBy: { rating: 'desc', reviewCount: 'desc', createdAt: 'desc' },
+      orderBy: [
+        { rating: 'desc' },
+        { reviewCount: 'desc' },
+        { createdAt: 'desc' }
+      ],
       include: PRODUCT_LIST_INCLUDE,
     }),
   );
@@ -508,7 +512,11 @@ export const getRecommendations = async (productId: string) => {
       NOT: { id: productId }, // exclude current product
     },
     take: 8,
-    orderBy: { rating: 'desc', reviewCount: 'desc', createdAt: 'desc' }, // prioritize popular items
+    orderBy: [
+      { rating: 'desc' },
+      { reviewCount: 'desc' },
+      { createdAt: 'desc' }
+    ], // prioritize popular items
     include: {
       images: { take: 1 },
       category: { select: { name: true, slug: true } },

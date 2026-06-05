@@ -181,8 +181,10 @@ export const formatProductListItemResponse = (product: ProductListItemRelations)
   storeId: product.storeId,
   categoryId: product.categoryId,
   isActive: product.isActive,
-   featured: product.featured ?? false,      // ← is this there?
-  bestseller: product.bestseller ?? false, 
+  featured: product.featured ?? false,
+  bestseller: product.bestseller ?? false,
+  rating: product.rating,
+  reviewCount: product.reviewCount,
   createdAt: product.createdAt,
   updatedAt: product.updatedAt,
   images: product.images.map((img) => ({
