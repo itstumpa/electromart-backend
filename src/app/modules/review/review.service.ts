@@ -163,3 +163,23 @@ export const getMyReviews = async (customerId: string) => {
     orderBy: { createdAt: 'desc' },
   });
 };
+
+// ─────────────────────────────────────────────
+// PUBLIC — latest reviews across all products
+// ─────────────────────────────────────────────
+export const getLatestReviews = async (limit = 10) => {
+  return prisma.review.findMany({
+    take: limit,
+    orderBy: { createdAt: 'desc' },
+    include: {
+      customer: { select: { id: true, name: true } },
+      product: {
+        select: {
+          id: true,
+          name: true,
+          images: { take: 1 },
+        },
+      },
+    },
+  });
+};

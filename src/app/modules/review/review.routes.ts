@@ -9,7 +9,9 @@ import { createReviewSchema, updateReviewSchema } from './review.validation';
 const router = Router();
 
 // PUBLIC
+router.get('/latest', ReviewController.getLatestReviews);
 router.get('/product/:productId', ReviewController.getProductReviews);
+
 
 // CUSTOMER
 router.post(

@@ -34,3 +34,10 @@ export const deleteReview = catchAsync(async (req: Request, res: Response) => {
   const result = await ReviewService.deleteReview(req.params.reviewId as string, req.user!.id, isAdmin);
   sendResponse(res, { statusCode: 200, success: true, message: result.message, data: null });
 });
+
+export const getLatestReviews = catchAsync(async (req: Request, res: Response) => {
+  const limit = req.query.limit ? Number(req.query.limit) : 10;
+  const reviews = await ReviewService.getLatestReviews(limit);
+  sendResponse(res, { statusCode: 200, success: true, message: 'Latest reviews fetched', data: reviews });
+});
+
