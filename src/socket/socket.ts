@@ -19,7 +19,6 @@ export const initSocket = (httpServer: HttpServer) => {
     // frontend sends userId after connecting
     socket.on("register", (userId: string) => {
       userSocketMap.set(userId, socket.id);
-      console.log(`🔌 User ${userId} connected → socket ${socket.id}`);
     });
 
     socket.on("disconnect", () => {
@@ -27,7 +26,6 @@ export const initSocket = (httpServer: HttpServer) => {
       for (const [userId, socketId] of userSocketMap.entries()) {
         if (socketId === socket.id) {
           userSocketMap.delete(userId);
-          console.log(`🔌 User ${userId} disconnected`);
           break;
         }
       }

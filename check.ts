@@ -7,7 +7,7 @@ async function main() {
     where: { role: 'VENDOR' },
     select: { id: true, name: true, email: true, website: true, location: true, avatar: true }
   });
-  console.log('user:', user);
+  
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());

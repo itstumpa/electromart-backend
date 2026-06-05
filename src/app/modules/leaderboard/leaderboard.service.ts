@@ -66,8 +66,6 @@ export const computeAndCacheLeaderboard = async () => {
 
   // cache in Redis
   await redis.setex(LEADERBOARD_KEY, TTL, JSON.stringify(leaderboard));
-
-  console.log(`✅ Leaderboard cached — ${leaderboard.length} vendors`);
   return leaderboard;
 };
 

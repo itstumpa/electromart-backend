@@ -122,7 +122,7 @@ const verifyUrl = `${process.env.BACKEND_URL}/api/v1/auth/verify-email?token=${e
     });
   } else {
     console.warn("⚠️ Redis not configured, skipping email queue");
-    console.log("Verification URL:", verifyUrl);
+    
   }
 
   return user;
