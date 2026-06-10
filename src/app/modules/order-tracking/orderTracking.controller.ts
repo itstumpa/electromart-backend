@@ -5,7 +5,6 @@ import sendResponse from "../../../utils/sendResponse";
 import { getOrderTimeline } from "./orderTracking.service";
 
 export const getTimeline = catchAsync(async (req: Request, res: Response) => {
-  const isAdmin = req.user!.role === "ADMIN";
-  const data = await getOrderTimeline(req.params.orderId as string, req.user!.id, isAdmin);
+  const data = await getOrderTimeline(req.params.orderId as string, req.user!.id, req.user!.role);
   sendResponse(res, { statusCode: 200, success: true, message: "Order timeline fetched", data });
 });
