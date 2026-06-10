@@ -25,7 +25,9 @@ const app: Application = express();
 app.use(helmet());
 app.use(hpp());
 // Near the top, after creating app
-if (config.node_env === 'development') {
+if (config.node_env === 'production') {
+  app.set('trust proxy', 1);
+} else {
   app.set('trust proxy', false);
 }
 
