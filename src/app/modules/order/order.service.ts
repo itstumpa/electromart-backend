@@ -476,3 +476,9 @@ export const getAllOrders = async (
     data,
   };
 };
+
+export const deleteOrder = async (orderId: string) => {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) throw new ApiError(404, 'Order not found');
+  await prisma.order.delete({ where: { id: orderId } });
+};

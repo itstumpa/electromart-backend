@@ -10,6 +10,7 @@ import {
   updateCartItemSchema,
   mergeCartSchema,
 } from "./cart.validation";
+import { applyCouponSchema } from "../coupon/coupon.validation";
 
 const router = Router();
 
@@ -20,6 +21,11 @@ router.get("/", CartController.viewCart);
 router.post("/", validate(addToCartSchema), CartController.addToCart);
 
 router.post("/merge", validate(mergeCartSchema), CartController.mergeCart);
+
+// Coupon routes — must appear BEFORE /:productId to avoid wildcard capture
+router.post("/coupon", validate(applyCouponSchema), CartController.applyCartCoupon);
+router.delete("/coupon", CartController.removeCartCoupon);
+
 router.post(
   "/:productId",
   validate(addToCartByProductIdSchema),

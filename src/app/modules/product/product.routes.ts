@@ -37,7 +37,7 @@ router.get('/my/products', authenticate, authorize('VENDOR', 'CUSTOMER'), Produc
 router.patch(
   '/:id',
   authenticate,
-  authorize('VENDOR', 'ADMIN'),
+  authorize('VENDOR', 'SUPER_ADMIN'),
   upload.array('files', 10),
   parseData,
   validate(updateProductSchema),
@@ -50,6 +50,13 @@ router.post(
   authorize('VENDOR'),
   upload.array('images', 5),
   ProductImageController.uploadProductImages
+);
+
+router.get(
+  '/admin/all',
+  authenticate,
+  authorize('SUPER_ADMIN', 'ADMIN'),
+  ProductController.getAllProductsAdmin  // new controller
 );
 
 // VENDOR — delete a product image

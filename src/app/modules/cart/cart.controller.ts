@@ -47,3 +47,13 @@ export const mergeCart = catchAsync(async (req: Request, res: Response) => {
   const cart = await CartService.mergeCart(req.user!.id, req.body.items);
   sendResponse(res, { statusCode: 200, success: true, message: "Cart merged successfully", data: cart });
 });
+
+export const applyCartCoupon = catchAsync(async (req: Request, res: Response) => {
+  const cart = await CartService.applyCartCoupon(req.user!.id, req.body.code);
+  sendResponse(res, { statusCode: 200, success: true, message: "Coupon applied", data: cart });
+});
+
+export const removeCartCoupon = catchAsync(async (req: Request, res: Response) => {
+  const cart = await CartService.removeCartCoupon(req.user!.id);
+  sendResponse(res, { statusCode: 200, success: true, message: "Coupon removed", data: cart });
+});

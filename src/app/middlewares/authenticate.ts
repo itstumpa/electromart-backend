@@ -1,17 +1,14 @@
 // src/middlewares/authenticate.ts
 
-import { NextFunction, Request, Response } from "express";
-import jwt from "jsonwebtoken";
-import passport from "passport";
-import { prisma } from "../../lib/prisma";
-import ApiError from "../../utils/apiErrors";
-import { setAuthCookies } from "../../utils/cookieHelpers";
-import config from "../config";
-import {
-  generateAccessToken,
-  generateRefreshToken,
-} from "../modules/auth/auth.utils";
-import { Role } from "@prisma/client";
+import { Role } from '@prisma/client';
+import { NextFunction, Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import passport from 'passport';
+import { prisma } from '../../lib/prisma';
+import ApiError from '../../utils/apiErrors';
+import { setAuthCookies } from '../../utils/cookieHelpers';
+import config from '../config';
+import { generateAccessToken, generateRefreshToken } from '../modules/auth/auth.utils';
 
 type AuthUser = {
   id: string;
@@ -21,74 +18,56 @@ type AuthUser = {
   isEmailVerified: boolean;
 };
 
-export const authenticate = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  passport.authenticate(
-    "jwt",
-    { session: false },
-    async (err: unknown, user: Express.User | false) => {
-      if (err) return next(err);
+export const authenticate = (req: Request, res: Response, next: NextFunction) => {
+  passport.authenticate('jwt', { session: false }, async (err: unknown, user: Express.User | false) => {
+    if (err) return next(err);
 
-      // ─────────────────────────────
-      // CASE 1: Access token valid
-      // ─────────────────────────────
-      if (user) {
-        req.user = normalizeUser(user);
-        return next();
+    // CASE 1: Access token valid
+    if (user) {
+      req.user = normalizeUser(user);
+      (req as any).isSuperAdmin = user.role === 'ADMIN';
+      return next();
+    }
+    // ─────────────────────────────
+    // CASE 2: Try refresh token
+    // ─────────────────────────────
+    const refreshToken = req.cookies?.refreshToken;
+    if (!refreshToken) {
+      return next(new ApiError(401, 'Unauthorized'));
+    }
+
+    try {
+      const payload = jwt.verify(refreshToken, config.refreshSecret as string) as { sub: string };
+
+      const foundUser = await prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true, // ✅ IMPORTANT FIX
+          isEmailVerified: true,
+        },
+      });
+
+      if (!foundUser) {
+        return next(new ApiError(401, 'Unauthorized'));
       }
 
-      // ─────────────────────────────
-      // CASE 2: Try refresh token
-      // ─────────────────────────────
-      const refreshToken = req.cookies?.refreshToken;
-      if (!refreshToken) {
-        return next(new ApiError(401, "Unauthorized"));
-      }
+      // rotate tokens
+      const newAccessToken = generateAccessToken(foundUser.id, foundUser.role);
+      const newRefreshToken = generateRefreshToken(foundUser.id);
 
-      try {
-        const payload = jwt.verify(
-          refreshToken,
-          config.refreshSecret as string,
-        ) as { sub: string };
+      setAuthCookies(res, newAccessToken, newRefreshToken);
 
-        const foundUser = await prisma.user.findUnique({
-          where: { id: payload.sub },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true, // ✅ IMPORTANT FIX
-            isEmailVerified: true,
-          },
-        });
-
-        if (!foundUser) {
-          return next(new ApiError(401, "Unauthorized"));
-        }
-
-        // rotate tokens
-        const newAccessToken = generateAccessToken(
-          foundUser.id,
-          foundUser.role,
-        );
-        const newRefreshToken = generateRefreshToken(foundUser.id);
-
-        setAuthCookies(res, newAccessToken, newRefreshToken);
-
-        // 🔥 CRITICAL FIX: normalize user shape
-        req.user = normalizeUser(foundUser);
-
-        return next();
-      } catch {
-        return next(
-          new ApiError(401, "Session expired. Please sign in again."),
-        );
-      }
-    },
-  )(req, res, next);
+      // After refresh token rotation
+      req.user = normalizeUser(foundUser);
+      (req as any).isSuperAdmin = foundUser.role === 'ADMIN';
+      return next();
+    } catch {
+      return next(new ApiError(401, 'Session expired. Please sign in again.'));
+    }
+  })(req, res, next);
 };
 
 // ─────────────────────────────────────────────

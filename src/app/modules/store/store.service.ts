@@ -52,6 +52,8 @@ export const getAllStores = async () => {
           slug: true,
           description: true,
           logo: true,
+          isApproved: true,
+          isActive: true,
           owner: {
             select: { id: true, name: true },
           },

@@ -1,23 +1,23 @@
-import express, { Application, Request, Response } from "express";
-import cors from "cors";
-import passport from "passport";
-import cookieParser from "cookie-parser";
-import compression from "compression";
-import helmet from "helmet";
-import hpp from "hpp";
-import http from "http";
-import swaggerUi from "swagger-ui-express";
+import compression from 'compression';
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import express, { Application, Request, Response } from 'express';
+import helmet from 'helmet';
+import hpp from 'hpp';
+import http from 'http';
+import passport from 'passport';
+import swaggerUi from 'swagger-ui-express';
 
-import router from "./app/routers";
-import "./app/config/passport";
-import config from "./app/config";
-import notFound from "./app/middlewares/notFound";
-import globalErrorHandler from "./app/middlewares/globalErrorHandler";
-import { initSocket } from "./socket/socket";
-import { swaggerSpec } from "./app/config/swagger";
-import { globalLimiter } from "./app/middlewares/rateLimiter";
-import { requestLogger } from "./app/middlewares/requestLogger";
-import { slowQueryLogger } from "./app/middlewares/slowQueryLogger";
+import config from './app/config';
+import './app/config/passport';
+import { swaggerSpec } from './app/config/swagger';
+import globalErrorHandler from './app/middlewares/globalErrorHandler';
+import notFound from './app/middlewares/notFound';
+import { globalLimiter } from './app/middlewares/rateLimiter';
+import { requestLogger } from './app/middlewares/requestLogger';
+import { slowQueryLogger } from './app/middlewares/slowQueryLogger';
+import router from './app/routers';
+import { initSocket } from './socket/socket';
 
 const app: Application = express();
 
@@ -31,31 +31,26 @@ if (config.node_env === 'development') {
 
 const corsOrigins = Array.from(
   new Set(
-    [config.client_url, config.frontend_url, process.env.LOCAL_FRONTEND_URL,].filter(
-      (origin): origin is string => Boolean(origin),
-    ),
-  ),
+    [config.client_url, config.frontend_url, process.env.LOCAL_FRONTEND_URL].filter((origin): origin is string => Boolean(origin))
+  )
 );
 
 app.use(
   cors({
     origin: corsOrigins.length > 1 ? corsOrigins : corsOrigins[0],
     credentials: true,
-    methods: ["GET", "POST", "PATCH", "DELETE", "PUT"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  }),
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'PUT'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
 );
 
 app.use(cookieParser());
 
 // ── Stripe Webhook ──────────────────────────────────────────────────────
-app.use(
-  "/api/v1/payments/stripe/webhook",
-  express.raw({ type: "application/json" })
-);
+app.use('/api/v1/payments/stripe/webhook', express.raw({ type: 'application/json' }));
 
 // ── Parsers ─────────────────────────────────────────────────────────────
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // ── Compression ────────────────────────────────────────────────────────
@@ -69,41 +64,41 @@ app.use(slowQueryLogger);
 app.use(passport.initialize());
 
 // ── Rate Limiting ──────────────────────────────────────────────────────
-// app.use(globalLimiter);
+app.use(globalLimiter);
 
 // ── HTTP + Socket ──────────────────────────────────────────────────────
 const httpServer = http.createServer(app);
 initSocket(httpServer);
 
 // ── Main Routes ────────────────────────────────────────────────────────
-app.use("/api/v1", router);
+app.use('/api/v1', router);
 
-app.get("/", (_req: Request, res: Response) => {
+app.get('/', (_req: Request, res: Response) => {
   res.send({
-    message: "Server Is Running..",
+    message: 'Server Is Running..',
     environment: config.node_env,
-    uptime: process.uptime().toFixed(2) + " second",
+    uptime: process.uptime().toFixed(2) + ' second',
     timeStamp: new Date().toISOString(),
   });
 });
 
 // ── Swagger ────────────────────────────────────────────────────────────
 app.use(
-  "/api-docs",
+  '/api-docs',
   swaggerUi.serve,
   swaggerUi.setup(swaggerSpec, {
-    customSiteTitle: "ElectroMart API Docs",
+    customSiteTitle: 'ElectroMart API Docs',
     swaggerOptions: { persistAuthorization: true },
   })
 );
 
 // ── Health Check ───────────────────────────────────────────────────────
-app.get("/health", (req, res) => {
+app.get('/health', (req, res) => {
   res.json({
-    status: "ok",
+    status: 'ok',
     uptime: process.uptime(),
-    service: "electromart-api",
-    version: "1.0.0",
+    service: 'electromart-api',
+    version: '1.0.0',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
     requestId: req.requestId,

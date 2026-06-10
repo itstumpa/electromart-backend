@@ -5,17 +5,17 @@ import { paginationHelper, type IPaginationOptions as IOptions } from '../../../
 import { notifyStockAlert } from '../stock-alert/stockAlert.service';
 
 import { CacheKeys } from '../../../utils/cacheKeys';
+import { generateUniqueSlug } from '../../../utils/generateUniqueSlug';
+import cloudinary from '../../config/cloudinary';
 import {
   formatProductDetailResponse,
   formatProductListItemResponse,
-  formatProductListResponse,
   formatProductResponse,
   PRODUCT_LIST_INCLUDE,
 } from './product.formatter';
-import cloudinary from '../../config/cloudinary';
-import { generateUniqueSlug } from '../../../utils/generateUniqueSlug';
 
 type ProductQuery = {
+  includeInactive?: boolean;
   categoryId?: string;
   storeId?: string;
   search?: string;
@@ -86,87 +86,81 @@ export const getAllProducts = async (query: ProductQuery, options: ProductOption
 
   const cacheKey = JSON.stringify({ query, options });
 
-  return getOrSetCache(
-    CacheKeys.ALL_PRODUCTS(cacheKey),
-    300, // 5 min cache
-    async () => {
-      const where = {
-        isActive: true,
-        ...(query.categoryId && { categoryId: query.categoryId }),
-        ...(query.storeId && { storeId: query.storeId }),
-        ...(query.search && {
-          name: { contains: query.search, mode: 'insensitive' as const },
-        }),
-        ...((query.minPrice || query.maxPrice) && {
-          price: {
-            ...(query.minPrice && { gte: query.minPrice }),
-            ...(query.maxPrice && { lte: query.maxPrice }),
-          },
-        }),
-
-          ...(query.onSale && {
-    originalPrice: { not: null },
-    AND: [{
-      originalPrice: { not: null },
-    }],
-  }),
-};
-
-const [rawData, total] = await Promise.all([
-prisma.product.findMany({
-  where,
-  select: {
-    id: true,
-    name: true,
-    slug: true,
-    description: true,
-    price: true,
-    originalPrice: true, 
-    stock: true,
-    storeId: true,
-    categoryId: true,
-    isActive: true,
-    rating: true,          
-    reviewCount: true,
-    featured: true,
-    bestseller: true,
-    createdAt: true,
-    updatedAt: true,
-    images: { select: { id: true, url: true } },
-    category: { select: { id: true, name: true, slug: true } },
-    store: { select: { id: true, name: true, slug: true } },
-    brand: { select: { id: true, name: true, slug: true } },
-  },
-  orderBy: { [sortBy]: sortOrder },
-  skip,
-  take: limit,
-}),
-  prisma.product.count({ where }),
-]);
-
-const data = query.onSale
-  ? rawData.filter(
-      (p) => p.originalPrice !== null && p.originalPrice > p.price
-    )
-  : rawData;
-
-      return {
-        meta: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
+  return getOrSetCache(CacheKeys.ALL_PRODUCTS(cacheKey), 120, async () => {
+    const where = {
+      ...(!query.includeInactive && { isActive: true }),
+      ...(query.categoryId && { categoryId: query.categoryId }),
+      ...(query.storeId && { storeId: query.storeId }),
+      ...(query.search && {
+        name: { contains: query.search, mode: 'insensitive' as const },
+      }),
+      ...((query.minPrice || query.maxPrice) && {
+        price: {
+          ...(query.minPrice && { gte: query.minPrice }),
+          ...(query.maxPrice && { lte: query.maxPrice }),
         },
-        data: data.map(formatProductListItemResponse),
-      };
-    }
-  );
+      }),
+
+      ...(query.onSale && {
+        originalPrice: { not: null },
+        AND: [
+          {
+            originalPrice: { not: null },
+          },
+        ],
+      }),
+    };
+
+    const [rawData, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          price: true,
+          originalPrice: true,
+          stock: true,
+          storeId: true,
+          categoryId: true,
+          isActive: true,
+          rating: true,
+          reviewCount: true,
+          featured: true,
+          bestseller: true,
+          createdAt: true,
+          updatedAt: true,
+          images: { select: { id: true, url: true } },
+          category: { select: { id: true, name: true, slug: true } },
+          store: { select: { id: true, name: true, slug: true } },
+          brand: { select: { id: true, name: true, slug: true } },
+        },
+        orderBy: { [sortBy]: sortOrder },
+        skip,
+        take: limit,
+      }),
+      prisma.product.count({ where }),
+    ]);
+
+    const data = query.onSale ? rawData.filter((p) => p.originalPrice !== null && p.originalPrice > p.price) : rawData;
+
+    return {
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+      data: data.map(formatProductListItemResponse),
+    };
+  });
 };
 
 // get products by slug
 
 export const getProductBySlug = async (slug: string) => {
-  return getOrSetCache(CacheKeys.PRODUCT_SLUG(slug), 600, async () => {
+  return getOrSetCache(CacheKeys.PRODUCT_SLUG(slug), 120, async () => {
     let product = await prisma.product.findUnique({
       where: { slug },
       include: {
@@ -220,7 +214,7 @@ export const getProductBySlug = async (slug: string) => {
 export const getProductById = async (id: string) => {
   return getOrSetCache(
     CacheKeys.SINGLE_PRODUCT(id),
-    600, // 10 min cache
+    120, // 2 min cache
     async () => {
       const product = await prisma.product.findUnique({
         where: { id },
@@ -303,7 +297,7 @@ export const searchProducts = async (query: any, options: IOptions) => {
 export const getSearchSuggestions = async (q: string) => {
   if (!q || q.length < 2) return [];
 
-  return getOrSetCache(CacheKeys.SEARCH_SUGGESTIONS(q), 300, () =>
+  return getOrSetCache(CacheKeys.SEARCH_SUGGESTIONS(q), 120, () =>
     prisma.product.findMany({
       where: {
         isActive: true,
@@ -315,14 +309,15 @@ export const getSearchSuggestions = async (q: string) => {
         images: { select: { url: true } },
       },
       take: 8,
-    }),
+    })
   );
 };
 
 // ─────────────────────────────────────────────
 // UPDATE PRODUCT (invalidate cache)
 // ─────────────────────────────────────────────
-export const updateProduct = async (productId: string, ownerId: string, data: Record<string, unknown>) => {
+export const updateProduct = async (productId: string, ownerId: string, data: Record<string, unknown>, isSuperAdmin: boolean) => {
+  console.log('isSuperAdmin:', isSuperAdmin);
   const product = await prisma.product.findUnique({
     where: { id: productId },
     include: {
@@ -337,7 +332,7 @@ export const updateProduct = async (productId: string, ownerId: string, data: Re
     throw new ApiError(404, 'Product not found');
   }
 
-  if (product.store.ownerId !== ownerId) {
+  if (!isSuperAdmin && product.store.ownerId !== ownerId) {
     throw new ApiError(403, 'You can only update your own products');
   }
 
@@ -414,7 +409,7 @@ export const updateProduct = async (productId: string, ownerId: string, data: Re
 // ─────────────────────────────────────────────
 // DELETE PRODUCT (invalidate cache)
 // ─────────────────────────────────────────────
-export const deleteProduct = async (productId: string, ownerId: string, isAdmin: boolean) => {
+export const deleteProduct = async (productId: string, ownerId: string, isSuperAdmin: boolean) => {
   const product = await prisma.product.findUnique({
     where: { id: productId },
     include: { store: true },
@@ -422,7 +417,7 @@ export const deleteProduct = async (productId: string, ownerId: string, isAdmin:
 
   if (!product) throw new ApiError(404, 'Product not found');
 
-  if (!isAdmin && product.store.ownerId !== ownerId) {
+  if (!isSuperAdmin && product.store.ownerId !== ownerId) {
     throw new ApiError(403, 'You can only delete your own products');
   }
 
@@ -450,7 +445,7 @@ export const getMyProducts = async (ownerId: string) => {
 
 // PUBLIC — featured products
 export const getFeaturedProducts = async () => {
-  const products = await getOrSetCache(CacheKeys.FEATURED_PRODUCTS, 3600, () =>
+  const products = await getOrSetCache(CacheKeys.FEATURED_PRODUCTS, 600, () =>
     prisma.product.findMany({
       where: {
         isActive: true,
@@ -459,37 +454,33 @@ export const getFeaturedProducts = async () => {
       take: 12,
       orderBy: { createdAt: 'desc' },
       include: PRODUCT_LIST_INCLUDE,
-    }),
+    })
   );
   return products.map(formatProductListItemResponse);
 };
 
 // PUBLIC — bestsellers (by order count)
 export const getBestsellers = async () => {
-  const products = await getOrSetCache(CacheKeys.BESTSELLERS, 1800, () =>
+  const products = await getOrSetCache(CacheKeys.BESTSELLERS, 600, () =>
     prisma.product.findMany({
       where: { isActive: true },
       take: 12,
-      orderBy: [
-        { rating: 'desc' },
-        { reviewCount: 'desc' },
-        { createdAt: 'desc' }
-      ],
+      orderBy: [{ rating: 'desc' }, { reviewCount: 'desc' }, { createdAt: 'desc' }],
       include: PRODUCT_LIST_INCLUDE,
-    }),
+    })
   );
   return products.map(formatProductListItemResponse);
 };
 
 // PUBLIC — new arrivals
 export const getNewArrivals = async () => {
-  const products = await getOrSetCache(CacheKeys.NEW_ARRIVALS, 1800, () =>
+  const products = await getOrSetCache(CacheKeys.NEW_ARRIVALS, 600, () =>
     prisma.product.findMany({
       where: { isActive: true },
       take: 12,
       orderBy: { createdAt: 'desc' },
       include: PRODUCT_LIST_INCLUDE,
-    }),
+    })
   );
   return products.map(formatProductListItemResponse);
 };
@@ -512,11 +503,7 @@ export const getRecommendations = async (productId: string) => {
       NOT: { id: productId }, // exclude current product
     },
     take: 8,
-    orderBy: [
-      { rating: 'desc' },
-      { reviewCount: 'desc' },
-      { createdAt: 'desc' }
-    ], // prioritize popular items
+    orderBy: [{ rating: 'desc' }, { reviewCount: 'desc' }, { createdAt: 'desc' }], // prioritize popular items
     include: {
       images: { take: 1 },
       category: { select: { name: true, slug: true } },

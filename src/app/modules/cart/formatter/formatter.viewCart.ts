@@ -3,22 +3,14 @@ import { Prisma } from "@prisma/client";
 export type CartItemWithRelations = Prisma.CartItemGetPayload<{
   include: {
     product: {
-      select: {
-        id: true;
-        name: true;
-        slug: true;
-        price: true;
-        stock: true;
-        images: { select: { url: true } };
-        store: { select: { name: true } };
+      include: {
+        images: true;
+        store: { select: { id: true; name: true; slug: true } };
       };
     };
     variant: true;
   };
 }>;
-
-
-
 
 export const formatCartItemResponse = (item: CartItemWithRelations) => ({
   id: item.id,
@@ -38,4 +30,10 @@ export const formatCartItemResponse = (item: CartItemWithRelations) => ({
   price: item.product.price,
 
   stock: item.product.stock,
+
+  // Expose the variant object so the frontend cart mapper can extract
+  // both variant.id (for cart operations) and variant.name (for display).
+  variant: item.variant
+    ? { id: item.variant.id, name: `${item.variant.name}: ${item.variant.value}` }
+    : undefined,
 });

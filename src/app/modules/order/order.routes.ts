@@ -31,5 +31,6 @@ router.patch(
   validate(updateOrderStatusSchema),
   OrderController.updateOrderStatus,
 );
+router.delete('/:orderId', authenticate, authorize('ADMIN'), OrderController.deleteOrder);
 
 export const orderRoute = router;

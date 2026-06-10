@@ -1,5 +1,5 @@
 // src/app/modules/product/product.controller.ts
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { uploadQueue } from '../../../jobs/queues/upload.queue';
 import { prisma } from '../../../lib/prisma';
 import ApiError from '../../../utils/apiErrors';
@@ -95,6 +95,8 @@ export const getProductBySlug = catchAsync(async (req: Request, res: Response) =
 
 export const getAllProducts = catchAsync(async (req: Request, res: Response) => {
   const { categoryId, storeId, search, minPrice, maxPrice, page, limit, sortBy, sortOrder, onSale } = req.query;
+  
+  const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(req.user?.role as string ?? '');
 
   const result = await ProductService.getAllProducts(
     {
@@ -103,6 +105,7 @@ export const getAllProducts = catchAsync(async (req: Request, res: Response) => 
       search: search ? String(search) : undefined,
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      includeInactive: isAdmin,
       onSale: onSale === 'true',
     },
     {
@@ -132,41 +135,28 @@ export const getProductById = catchAsync(async (req: Request, res: Response) => 
 
 export const updateProduct = catchAsync(async (req: Request, res: Response) => {
   const files = (req.files as Express.Multer.File[]) || [];
-
-  // 1. parse JSON body (from form-data)
   const body = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
-
-  // 2. normalize removeImageIds
   const removeImageIds = typeof body.removeImageIds === 'string' ? JSON.parse(body.removeImageIds) : body.removeImageIds || [];
 
-  // 3. upload new images
   let newImages: { url: string; publicId: string }[] = [];
-
   if (files.length) {
     newImages = await Promise.all(
       files.map(async (file) => {
         const result: any = await uploadToCloudinary(file.buffer, 'products');
-        return {
-          url: result.secure_url,
-          publicId: result.public_id,
-        };
+        return { url: result.secure_url, publicId: result.public_id };
       })
     );
   }
 
-  // 4. call service with CLEAN DATA
-  const product = await ProductService.updateProduct(req.params.id as string, req.user!.id, {
-    ...body,
-    removeImageIds,
-    newImages,
-  });
+ const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(req.user!.role as string);
+const product = await ProductService.updateProduct(
+  req.params.id as string,
+  req.user!.id,
+  { ...body, removeImageIds, newImages },
+  isAdmin,
+);
 
-  sendResponse(res, {
-    statusCode: 200,
-    success: true,
-    message: 'Product updated successfully',
-    data: product,
-  });
+  sendResponse(res, { statusCode: 200, success: true, message: 'Product updated successfully', data: product });
 });
 
 export const deleteProduct = catchAsync(async (req: Request, res: Response) => {
@@ -274,3 +264,15 @@ export const getRecommendations = catchAsync(async (req: Request, res: Response)
   const products = await ProductService.getRecommendations(req.params.id as string);
   sendResponse(res, { statusCode: 200, success: true, message: 'Recommendations', data: products });
 });
+
+export const getAllProductsAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await ProductService.getAllProducts(
+      { ...req.query, includeInactive: true },  // force include inactive
+      req.query
+    );
+    res.json({ success: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+};
