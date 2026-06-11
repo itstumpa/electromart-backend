@@ -57,6 +57,25 @@ const getFullCart = async (userId: string) => {
   };
 };
 
+// ── Helper: compute discount amount ───────────────────────────────────────────
+const computeDiscountAmount = (
+  cartTotal: number,
+  discountType: string,
+  discountValue: number,
+  maxDiscount?: number | null
+): number => {
+  let amount: number;
+  if (discountType === "PERCENTAGE") {
+    amount = (cartTotal * discountValue) / 100;
+    if (maxDiscount) {
+      amount = Math.min(amount, maxDiscount);
+    }
+  } else {
+    amount = discountValue;
+  }
+  return Number(Math.max(0, amount).toFixed(2));
+};
+
 // ── Helper: build coupon summary for a cart ───────────────────────────────────
 // Always re-fetches the coupon from the DB so stale/deactivated coupons
 // are detected immediately without needing the frontend to do anything.
@@ -67,10 +86,12 @@ const buildCouponSummary = async (
   couponId: string | null;
   couponCode: string | null;
   discountPercent: number;
+  discountType: string | null;
+  discountValue: number;
   discountAmount: number;
 }> => {
   if (!couponId) {
-    return { couponId: null, couponCode: null, discountPercent: 0, discountAmount: 0 };
+    return { couponId: null, couponCode: null, discountPercent: 0, discountType: null, discountValue: 0, discountAmount: 0 };
   }
 
   const coupon = await prisma.coupon.findUnique({ where: { id: couponId } });
@@ -81,17 +102,36 @@ const buildCouponSummary = async (
       where: { couponId },
       data: { couponId: null },
     });
-    return { couponId: null, couponCode: null, discountPercent: 0, discountAmount: 0 };
+    return { couponId: null, couponCode: null, discountPercent: 0, discountType: null, discountValue: 0, discountAmount: 0 };
   }
 
-  const discountAmount = Number(
-    ((cartTotal * coupon.discountPercent) / 100).toFixed(2)
+  // Check minimum order amount
+  if (coupon.minOrderAmount && cartTotal < coupon.minOrderAmount) {
+    // Keep coupon on cart but don't apply discount — let frontend show warning
+    return {
+      couponId: coupon.id,
+      couponCode: coupon.code,
+      discountPercent: 0,
+      discountType: coupon.discountType,
+      discountValue: coupon.discountValue,
+      discountAmount: 0,
+    };
+  }
+
+  const discountAmount = computeDiscountAmount(
+    cartTotal,
+    coupon.discountType,
+    coupon.discountValue,
+    coupon.maxDiscount
   );
+  const discountPercent = coupon.discountType === "PERCENTAGE" ? coupon.discountValue : 0;
 
   return {
     couponId: coupon.id,
     couponCode: coupon.code,
-    discountPercent: coupon.discountPercent,
+    discountPercent,
+    discountType: coupon.discountType,
+    discountValue: coupon.discountValue,
     discountAmount,
   };
 };
@@ -128,6 +168,8 @@ export const viewCart = async (userId: string) => {
       couponId: null,
       couponCode: null,
       discountPercent: 0,
+      discountType: null,
+      discountValue: 0,
       discountAmount: 0,
       finalTotal: 0,
     };
@@ -147,6 +189,8 @@ export const viewCart = async (userId: string) => {
     couponId: couponSummary.couponId,
     couponCode: couponSummary.couponCode,
     discountPercent: couponSummary.discountPercent,
+    discountType: couponSummary.discountType,
+    discountValue: couponSummary.discountValue,
     discountAmount: couponSummary.discountAmount,
     finalTotal: Number((cartTotal - couponSummary.discountAmount).toFixed(2)),
   };
@@ -160,8 +204,26 @@ export const applyCartCoupon = async (userId: string, code: string) => {
     where: { code: code.toUpperCase() },
   });
 
-  if (!coupon || !coupon.isActive) {
-    throw new ApiError(404, "Invalid or expired coupon code");
+  if (!coupon) {
+    throw new ApiError(404, "Invalid coupon code");
+  }
+
+  if (!coupon.isActive) {
+    throw new ApiError(400, "This coupon is no longer active");
+  }
+
+  const now = new Date();
+
+  if (coupon.startDate && new Date(coupon.startDate) > now) {
+    throw new ApiError(400, "This coupon is not yet available");
+  }
+
+  if (coupon.expiryDate && new Date(coupon.expiryDate) < now) {
+    throw new ApiError(400, "This coupon has expired");
+  }
+
+  if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+    throw new ApiError(400, "This coupon has reached its usage limit");
   }
 
   const cart = await prisma.cart.findUnique({
@@ -173,6 +235,18 @@ export const applyCartCoupon = async (userId: string, code: string) => {
 
   if (!cart || cart.items.length === 0) {
     throw new ApiError(400, "Your cart is empty");
+  }
+
+  const cartTotal = cart.items.reduce(
+    (sum, item) => sum + Number(item.product.price) * item.quantity,
+    0
+  );
+
+  if (coupon.minOrderAmount && cartTotal < coupon.minOrderAmount) {
+    throw new ApiError(
+      400,
+      `Minimum order amount of $${coupon.minOrderAmount.toFixed(2)} is required for this coupon`
+    );
   }
 
   // Persist the coupon reference on the cart

@@ -433,13 +433,26 @@ model Notification {
   @@index([createdAt])
 }
 
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
 model Coupon {
-  id              String   @id @default(cuid())
-  code            String   @unique
-  discountPercent Float
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id              String       @id @default(cuid())
+  code            String       @unique
+  discountType    DiscountType @default(PERCENTAGE)
+  discountValue   Float
+  discountPercent Float        @default(0)
+  minOrderAmount  Float?
+  maxDiscount     Float?
+  usageLimit      Int?
+  usedCount       Int          @default(0)
+  startDate       DateTime?
+  expiryDate      DateTime?
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
   orders          Order[]
   carts           Cart[]
 }

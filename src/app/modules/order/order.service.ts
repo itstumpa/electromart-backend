@@ -69,8 +69,16 @@ const cart = await prisma.cart.findUnique({
   let couponId: string | undefined;
 
   if (couponCode) {
-    const coupon = await validateCoupon(couponCode);
-    discount = (subtotal * coupon.discountPercent) / 100;
+    const coupon = await validateCoupon(couponCode, subtotal);
+    if (coupon.discountType === 'FIXED') {
+      discount = coupon.discountValue;
+    } else {
+      discount = (subtotal * coupon.discountValue) / 100;
+      if (coupon.maxDiscount) {
+        discount = Math.min(discount, coupon.maxDiscount);
+      }
+    }
+    discount = Number(Math.max(0, discount).toFixed(2));
     couponId = coupon.id;
   }
 
@@ -128,7 +136,15 @@ items: {
     });
 
     await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
-    
+
+    // Increment coupon usage count if a coupon was applied
+    if (couponId) {
+      await tx.coupon.update({
+        where: { id: couponId },
+        data: { usedCount: { increment: 1 } },
+      });
+    }
+
     return newOrder;
   });
 

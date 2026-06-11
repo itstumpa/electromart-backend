@@ -204,6 +204,13 @@ export const formatProductListItemResponse = (product: ProductListItemRelations)
     name: product.store.name,
     slug: product.store.slug,
   },
+  brand: product.brand
+    ? {
+        id: product.brand.id,
+        name: product.brand.name,
+        slug: product.brand.slug,
+      }
+    : null,
 });
 
 export const formatProductListResponse = (product: ProductListWithRelations) => ({

@@ -1,7 +1,7 @@
 // src/app/modules/coupon/coupon.routes.ts
 import { Router } from "express";
 import * as CouponController from "./coupon.controller";
-import { createCouponSchema, applyCouponSchema } from "./coupon.validation";
+import { createCouponSchema, updateCouponSchema, applyCouponSchema } from "./coupon.validation";
 // import { authorize } from "passport";
 import { authenticate } from "../../middlewares/authenticate";
 import { validate } from "../../middlewares/validate";
@@ -13,6 +13,7 @@ const router = Router();
 router.post("/", authenticate, authorize("ADMIN"), validate(createCouponSchema), CouponController.createCoupon);
 router.get("/", authenticate, authorize("ADMIN"), CouponController.getAllCoupons);
 router.patch("/:id/toggle", authenticate, authorize("ADMIN"), CouponController.toggleCoupon);
+router.patch("/:id", authenticate, authorize("ADMIN"), validate(updateCouponSchema), CouponController.updateCoupon);
 router.delete("/:id", authenticate, authorize("ADMIN"), CouponController.deleteCoupon);
 
 // CUSTOMER — preview discount

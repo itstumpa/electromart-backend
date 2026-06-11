@@ -19,6 +19,11 @@ export const toggleCoupon = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: 200, success: true, message: "Coupon toggled", data: coupon });
 });
 
+export const updateCoupon = catchAsync(async (req: Request, res: Response) => {
+  const coupon = await CouponService.updateCoupon(req.params.id as string, req.body);
+  sendResponse(res, { statusCode: 200, success: true, message: "Coupon updated", data: coupon });
+});
+
 export const deleteCoupon = catchAsync(async (req: Request, res: Response) => {
   const result = await CouponService.deleteCoupon(req.params.id  as string);
   sendResponse(res, { statusCode: 200, success: true, message: result.message, data: null });
