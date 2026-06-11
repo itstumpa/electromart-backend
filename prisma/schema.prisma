@@ -208,6 +208,7 @@ model Product {
   name           String
   slug           String                 @unique
   description    String?
+  details        String?
   price          Decimal
   originalPrice  Decimal?
   stock          Int                    @default(0)

@@ -44,6 +44,7 @@ type ProductDetailDTO = {
   slug: string;
 
   description: string | null;
+  details: string | null;
 
   price: Prisma.Decimal;
   originalPrice: Prisma.Decimal | null;
@@ -129,6 +130,7 @@ export const formatProductResponse = (product: ProductWithRelations) => ({
   slug: product.slug ?? "",
 
   description: product.description,
+  details: product.details,
   price: product.price,
   stock: product.stock,
   isActive: product.isActive,
@@ -175,6 +177,7 @@ export const formatProductListItemResponse = (product: ProductListItemRelations)
   name: product.name,
   slug: product.slug ?? "",
   description: product.description,
+  details: product.details ?? null,
   price: product.price,
   originalPrice: product.originalPrice ?? null,
   stock: product.stock,
@@ -232,6 +235,7 @@ export const formatProductDetailResponse = (product: ProductDetailWithRelations)
   name: product.name,
   slug: product.slug ?? "",
   description: product.description,
+  details: product.details,
   price: product.price,
   originalPrice: product.originalPrice,
   stock: product.stock,

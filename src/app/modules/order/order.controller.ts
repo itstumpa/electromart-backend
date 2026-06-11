@@ -71,7 +71,7 @@ export const getAllOrders = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: 200, success: true, message: 'All orders fetched', meta: result.meta, data: result.data });
 });
 
-export const deleteOrder = catchAsync(async (req: Request, res: Response) => {
-  await OrderService.deleteOrder(req.params.orderId as string);
-  sendResponse(res, { statusCode: 200, success: true, message: 'Order deleted', data: null });
+export const adminCancelOrder = catchAsync(async (req: Request, res: Response) => {
+  const result = await OrderService.adminCancelOrder(req.params.id as string, req.body.reason);
+  sendResponse(res, { statusCode: 200, success: true, message: result.message, data: null });
 });

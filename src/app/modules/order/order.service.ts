@@ -259,9 +259,12 @@ export const getOrderById = async (orderId: string, userId: string, isAdmin: boo
           store: { select: { id: true, name: true } },
         },
       },
-      user: { select: { id: true, name: true, email: true } },
+      user: { select: { id: true, name: true, email: true, phone: true } },
       shipping: true,
       payment: true,
+      statusHistory: {
+        orderBy: { createdAt: 'desc' },
+      },
     },
   });
 
@@ -454,7 +457,7 @@ export const getAllOrders = async (
     prisma.order.findMany({
       where,
       include: {
-        user: { select: { id: true, name: true, email: true } }, // was: customer
+        user: { select: { id: true, name: true, email: true, phone: true } }, // was: customer
         items: {
           include: {
             store: { select: { id: true, name: true } },
@@ -463,6 +466,9 @@ export const getAllOrders = async (
         },
         shipping: true,
         payment: true,
+        statusHistory: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
       orderBy: { [sortBy]: sortOrder },
       skip,
@@ -477,8 +483,42 @@ export const getAllOrders = async (
   };
 };
 
-export const deleteOrder = async (orderId: string) => {
+// ADMIN — cancel any order (soft state change, preserves history)
+export const adminCancelOrder = async (orderId: string, reason?: string) => {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) throw new ApiError(404, 'Order not found');
-  await prisma.order.delete({ where: { id: orderId } });
+
+  if (order.status === 'CANCELLED') {
+    throw new ApiError(400, 'Order is already cancelled');
+  }
+  if (order.status === 'DELIVERED') {
+    throw new ApiError(400, 'Cannot cancel a delivered order');
+  }
+
+  const items = await prisma.orderItem.findMany({ where: { orderId } });
+  const cancelNote = reason ? `Cancelled by admin — ${reason}` : 'Cancelled by admin';
+
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: orderId },
+      data: { status: 'CANCELLED' },
+    });
+
+    await tx.orderItem.updateMany({
+      where: { orderId },
+      data: { status: 'CANCELLED' },
+    });
+
+    // Restore stock for each item
+    for (const item of items) {
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { stock: { increment: item.quantity } },
+      });
+    }
+
+    await addStatusHistory(orderId, OrderStatus.CANCELLED, cancelNote);
+  });
+
+  return { message: 'Order cancelled successfully' };
 };

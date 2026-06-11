@@ -52,9 +52,10 @@ export const getSearchSuggestions = catchAsync(async (req: Request, res: Respons
 
 export const createProduct = catchAsync(async (req: Request, res: Response) => {
   const files = (req.files as Express.Multer.File[]) || [];
+  const imageUrl = req.body.imageUrl as string | undefined;
 
-  // Require at least one image — no fallback, no silent empty product
-  if (!files.length) {
+  // Require at least one image — accept either file upload or image URL
+  if (!files.length && !imageUrl) {
     throw new ApiError(400, 'At least one product image is required');
   }
 
@@ -72,15 +73,22 @@ export const createProduct = catchAsync(async (req: Request, res: Response) => {
       })
     );
     images = uploaded;
+  } else if (imageUrl) {
+    images = [{ url: imageUrl }];
   }
 
   const variants = typeof req.body.variants === 'string' ? JSON.parse(req.body.variants) : req.body.variants;
+  const specifications = typeof req.body.specifications === 'string' ? JSON.parse(req.body.specifications) : req.body.specifications;
+
+  // Strip imageUrl from body data — it's not a Prisma field, and the image is already in the `images` array
+  const { imageUrl: _, ...bodyWithoutImageUrl } = req.body;
 
   const product = await ProductService.createProduct(req.user!.id, {
-    ...req.body,
+    ...bodyWithoutImageUrl,
     slug,
     images,
     variants,
+    specifications,
   });
 
   sendResponse(res, {

@@ -42,10 +42,12 @@ export const createProduct = async (
   data: {
     name: string;
     description?: string;
+    details?: string;
     price: number;
     stock: number;
     categoryId: string;
     images?: { url: string }[];
+    specifications?: { key: string; value: string }[];
     variants?: { name: string; value: string; price?: number; stock: number }[];
   }
 ) => {
@@ -59,7 +61,7 @@ export const createProduct = async (
 
   const slug = await generateUniqueSlug(data.name, prisma.product);
 
-  const { images, variants, ...productData } = data;
+  const { images, variants, specifications, ...productData } = data;
 
   const product = await prisma.product.create({
     data: {
@@ -68,6 +70,7 @@ export const createProduct = async (
       storeId: store.id,
       images: images ? { create: images } : undefined,
       variants: variants ? { create: variants } : undefined,
+      specifications: specifications ? { create: specifications } : undefined,
     },
     include: { images: true, variants: true, category: true, brand: true, specifications: true },
   });
@@ -119,6 +122,7 @@ export const getAllProducts = async (query: ProductQuery, options: ProductOption
           name: true,
           slug: true,
           description: true,
+          details: true,
           price: true,
           originalPrice: true,
           stock: true,
@@ -438,7 +442,7 @@ export const getMyProducts = async (ownerId: string) => {
 
   return prisma.product.findMany({
     where: { storeId: store.id },
-    include: { images: true, variants: true, category: true },
+    include: { images: true, variants: true, category: true, specifications: true },
     orderBy: { createdAt: 'desc' },
   });
 };
