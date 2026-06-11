@@ -60,7 +60,7 @@ export const getProductReviews = async (productId: string, options: IOptions) =>
 
   const cacheKey = `${productId}:${page}:${limit}:${sortBy}:${sortOrder}`;
 
-  return getOrSetCache(CacheKeys.PRODUCT_REVIEWS(cacheKey), 300, async () => {
+  return getOrSetCache(CacheKeys.PRODUCT_REVIEWS(cacheKey), 60, async () => {
     const product = await prisma.product.findUnique({
       where: { id: productId },
       select: { rating: true },

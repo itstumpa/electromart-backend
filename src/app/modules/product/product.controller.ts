@@ -52,6 +52,12 @@ export const getSearchSuggestions = catchAsync(async (req: Request, res: Respons
 
 export const createProduct = catchAsync(async (req: Request, res: Response) => {
   const files = (req.files as Express.Multer.File[]) || [];
+
+  // Require at least one image — no fallback, no silent empty product
+  if (!files.length) {
+    throw new ApiError(400, 'At least one product image is required');
+  }
+
   const slug = await generateUniqueSlug(req.body.name, prisma.product as any);
 
   let images: { url: string }[] = [];

@@ -2,19 +2,11 @@
  * ElectroMart — database seed from frontend mock data.
  * Run: npx prisma db seed  (or npm run seed)
  */
-import bcrypt from "bcrypt";
-import dotenv from "dotenv";
-import path from "path";
-import {
-  OrderItemStatus,
-  OrderStatus,
-  PaymentGateway,
-  PaymentStatus,
-  Prisma,
-  PrismaClient,
-  Role,
-} from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaPg } from '@prisma/adapter-pg';
+import { OrderItemStatus, OrderStatus, PaymentGateway, PaymentStatus, Prisma, PrismaClient, Role } from '@prisma/client';
+import bcrypt from 'bcrypt';
+import dotenv from 'dotenv';
+import path from 'path';
 
 import {
   mockAddresses,
@@ -28,19 +20,19 @@ import {
   mockUsers,
   mockVendorProfiles,
   mockWishlist,
-} from "../../electromart-frontend/data/mock-data";
+} from '../../electromart-frontend/data/mock-data';
 
-dotenv.config({ path: path.join(__dirname, "..", ".env") });
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
-  throw new Error("DATABASE_URL is missing in .env");
+  throw new Error('DATABASE_URL is missing in .env');
 }
 
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
-const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "Demo@1234";
+const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'Demo@1234';
 
 const counts = {
   users: 0,
@@ -75,73 +67,73 @@ const slugify = (text: string) =>
   text
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
 
 const mapRole = (role: string): Role => {
-  if (role === "SUPER_ADMIN") return "SUPER_ADMIN";
-  if (role === "VENDOR") return "VENDOR";
-  if (role === "ADMIN") return "ADMIN";
-  return "CUSTOMER";
+  if (role === 'SUPER_ADMIN') return 'SUPER_ADMIN';
+  if (role === 'VENDOR') return 'VENDOR';
+  if (role === 'ADMIN') return 'ADMIN';
+  return 'CUSTOMER';
 };
 
 const mapOrderStatus = (status: string): OrderStatus => {
   switch (status) {
-    case "pending":
-      return "PENDING";
-    case "confirmed":
-    case "processing":
-      return "PROCESSING";
-    case "shipped":
-    case "out_for_delivery":
-      return "SHIPPED";
-    case "delivered":
-      return "DELIVERED";
-    case "cancelled":
-    case "refunded":
-      return "CANCELLED";
+    case 'pending':
+      return 'PENDING';
+    case 'confirmed':
+    case 'processing':
+      return 'PROCESSING';
+    case 'shipped':
+    case 'out_for_delivery':
+      return 'SHIPPED';
+    case 'delivered':
+      return 'DELIVERED';
+    case 'cancelled':
+    case 'refunded':
+      return 'CANCELLED';
     default:
-      return "PENDING";
+      return 'PENDING';
   }
 };
 
 const mapOrderItemStatus = (status: OrderStatus): OrderItemStatus => {
-  if (status === "CANCELLED") return "CANCELLED";
-  if (status === "DELIVERED") return "DELIVERED";
-  if (status === "SHIPPED") return "SHIPPED";
-  if (status === "PROCESSING") return "PROCESSING";
-  return "PENDING";
+  if (status === 'CANCELLED') return 'CANCELLED';
+  if (status === 'DELIVERED') return 'DELIVERED';
+  if (status === 'SHIPPED') return 'SHIPPED';
+  if (status === 'PROCESSING') return 'PROCESSING';
+  return 'PENDING';
 };
 
 const mapPaymentStatus = (status: string): PaymentStatus => {
   switch (status) {
-    case "paid":
-      return "PAID";
-    case "failed":
-      return "FAILED";
-    case "refunded":
-      return "REFUNDED";
+    case 'paid':
+      return 'PAID';
+    case 'failed':
+      return 'FAILED';
+    case 'refunded':
+      return 'REFUNDED';
     default:
-      return "PENDING";
+      return 'PENDING';
   }
 };
 
 const mapPaymentGateway = (method: string): PaymentGateway => {
-  if (method === "SSLCommerz") return "SSLCOMMERZ";
-  if (method === "BKASH") return "BKASH";
-  return "MANUAL";
+  if (method === 'SSLCommerz') return 'SSLCOMMERZ';
+  if (method === 'BKASH') return 'BKASH';
+  return 'MANUAL';
 };
 
 const mapNotificationType = (type: string): string => type.toUpperCase();
 
 const productIsActive = (product: (typeof mockProducts)[0]): boolean => {
-  if (product.status === "draft") return false;
+  if (product.status === 'draft') return false;
   if (!product.isPublished) return false;
   return true;
 };
 
 async function seedUsers(hashedPassword: string) {
-  const seedable = mockUsers.filter((u) => u.role !== "DELIVERY");
+  const seedable = mockUsers.filter((u) => u.role !== 'DELIVERY');
 
   for (const user of seedable) {
     await prisma.user.upsert({
@@ -154,6 +146,7 @@ async function seedUsers(hashedPassword: string) {
         role: mapRole(user.role),
         isEmailVerified: user.isVerified,
         phone: user.phone ?? null,
+        avatar: user.avatar ?? null,
         createdAt: new Date(user.createdAt),
         updatedAt: new Date(user.updatedAt),
       },
@@ -163,6 +156,7 @@ async function seedUsers(hashedPassword: string) {
         role: mapRole(user.role),
         isEmailVerified: user.isVerified,
         phone: user.phone ?? null,
+        avatar: user.avatar ?? null,
         updatedAt: new Date(user.updatedAt),
       },
     });
@@ -222,18 +216,12 @@ async function seedStores(): Promise<Map<string, string>> {
 
 async function seedCategories(): Promise<Map<string, string>> {
   const categoryIdMap = new Map<string, string>();
-  const featuredCategoryIds = new Set(
-    mockProducts.filter((p) => p.featured).map((p) => p.categoryId),
-  );
+  const featuredCategoryIds = new Set(mockProducts.filter((p) => p.featured).map((p) => p.categoryId));
 
   for (const category of mockCategories) {
     const existing = await prisma.category.findFirst({
       where: {
-        OR: [
-          { id: category.id },
-          { slug: category.slug },
-          { name: category.name },
-        ],
+        OR: [{ id: category.id }, { slug: category.slug }, { name: category.name }],
       },
     });
 
@@ -304,18 +292,15 @@ async function seedBrands(): Promise<Map<string, string>> {
 async function seedProducts(
   vendorIdToStoreId: Map<string, string>,
   categoryIdMap: Map<string, string>,
-  brandIdMap: Map<string, string>,
+  brandIdMap: Map<string, string>
 ) {
   for (const product of mockProducts) {
     const storeId = vendorIdToStoreId.get(product.vendorId);
     if (!storeId) {
-      throw new Error(
-        `No store for product ${product.id} (vendorId ${product.vendorId})`,
-      );
+      throw new Error(`No store for product ${product.id} (vendorId ${product.vendorId})`);
     }
 
-    const categoryId =
-      categoryIdMap.get(product.categoryId) ?? product.categoryId;
+    const categoryId = categoryIdMap.get(product.categoryId) ?? product.categoryId;
     const brandId = brandIdMap.get(product.brandId) ?? product.brandId;
 
     await prisma.product.upsert({
@@ -326,10 +311,7 @@ async function seedProducts(
         slug: product.slug,
         description: product.description,
         price: toDecimal(product.price),
-        originalPrice:
-          product.originalPrice != null
-            ? toDecimal(product.originalPrice)
-            : null,
+        originalPrice: product.originalPrice != null ? toDecimal(product.originalPrice) : null,
         stock: product.stock,
         storeId,
         categoryId,
@@ -348,10 +330,7 @@ async function seedProducts(
         slug: product.slug,
         description: product.description,
         price: toDecimal(product.price),
-        originalPrice:
-          product.originalPrice != null
-            ? toDecimal(product.originalPrice)
-            : null,
+        originalPrice: product.originalPrice != null ? toDecimal(product.originalPrice) : null,
         stock: product.stock,
         storeId,
         categoryId,
@@ -367,11 +346,7 @@ async function seedProducts(
     counts.products += 1;
 
     await prisma.productImage.deleteMany({ where: { productId: product.id } });
-    const imageUrls = [
-      ...new Set(
-        [product.image, ...(product.images ?? [])].filter(Boolean),
-      ),
-    ];
+    const imageUrls = [...new Set([product.image, ...(product.images ?? [])].filter(Boolean))];
     for (let i = 0; i < imageUrls.length; i += 1) {
       await prisma.productImage.create({
         data: {
@@ -402,10 +377,7 @@ async function seedProducts(
 
     if (product.variants?.length) {
       for (const variant of product.variants) {
-        const variantPrice =
-          variant.priceModifier === 0
-            ? null
-            : toDecimal(product.price + variant.priceModifier);
+        const variantPrice = variant.priceModifier === 0 ? null : toDecimal(product.price + variant.priceModifier);
 
         await prisma.productVariant.upsert({
           where: { id: variant.id },
@@ -482,8 +454,7 @@ async function seedReviews() {
 
 async function seedAddresses() {
   for (const address of mockAddresses) {
-    const label =
-      address.label.charAt(0).toUpperCase() + address.label.slice(1);
+    const label = address.label.charAt(0).toUpperCase() + address.label.slice(1);
 
     await prisma.address.upsert({
       where: { id: address.id },
@@ -517,12 +488,7 @@ async function seedAddresses() {
 }
 
 async function seedOrders(vendorIdToStoreId: Map<string, string>) {
-  const productStoreMap = new Map(
-    mockProducts.map((p) => [
-      p.id,
-      vendorIdToStoreId.get(p.vendorId) ?? "",
-    ]),
-  );
+  const productStoreMap = new Map(mockProducts.map((p) => [p.id, vendorIdToStoreId.get(p.vendorId) ?? '']));
 
   for (const order of mockOrders) {
     const orderStatus = mapOrderStatus(order.status);
@@ -539,7 +505,7 @@ async function seedOrders(vendorIdToStoreId: Map<string, string>) {
         tax: toDecimal(order.tax),
         discount: toDecimal(order.discount),
         total: toDecimal(order.total),
-        currency: "TK",
+        currency: 'TK',
         couponId: null,
         createdAt: new Date(order.createdAt),
         updatedAt: new Date(order.updatedAt),
@@ -617,10 +583,9 @@ async function seedOrders(vendorIdToStoreId: Map<string, string>) {
         status: paymentStatus,
         gateway: mapPaymentGateway(order.paymentMethod),
         amount: toDecimal(order.total),
-        currency: "BDT",
+        currency: 'BDT',
         transactionId: `seed-${order.id}`,
-        provider:
-          order.paymentMethod === "SSLCommerz" ? "sslcommerz" : "manual",
+        provider: order.paymentMethod === 'SSLCommerz' ? 'sslcommerz' : 'manual',
       },
       update: {
         status: paymentStatus,
@@ -631,8 +596,7 @@ async function seedOrders(vendorIdToStoreId: Map<string, string>) {
     counts.payments += 1;
 
     await prisma.orderStatusHistory.deleteMany({ where: { orderId: order.id } });
-    const historyNote =
-      order.note ?? `Order status: ${orderStatus}`;
+    const historyNote = order.note ?? `Order status: ${orderStatus}`;
     await prisma.orderStatusHistory.create({
       data: {
         id: `osh-${order.id}-1`,
@@ -644,13 +608,13 @@ async function seedOrders(vendorIdToStoreId: Map<string, string>) {
     });
     counts.orderStatusHistory += 1;
 
-    if (orderStatus === "DELIVERED" || orderStatus === "SHIPPED") {
+    if (orderStatus === 'DELIVERED' || orderStatus === 'SHIPPED') {
       await prisma.orderStatusHistory.create({
         data: {
           id: `osh-${order.id}-0`,
           orderId: order.id,
-          status: "PENDING",
-          note: "Order placed",
+          status: 'PENDING',
+          note: 'Order placed',
           createdAt: new Date(order.createdAt),
         },
       });
@@ -712,7 +676,7 @@ async function seedCart() {
 }
 
 async function seedWishlist() {
-  const customerId = "user-cust-1";
+  const customerId = 'user-cust-1';
   const wishlist = await prisma.wishlist.upsert({
     where: { userId: customerId },
     create: { userId: customerId },
@@ -740,10 +704,10 @@ async function seedWishlist() {
 
 async function seedNotifications() {
   for (const notification of mockNotifications) {
-    if (notification.userId === "user-delivery-1") {
+    if (notification.userId === 'user-delivery-1') {
       continue;
     }
-    if (notification.type === "delivery") {
+    if (notification.type === 'delivery') {
       continue;
     }
 
@@ -770,7 +734,7 @@ async function seedNotifications() {
 }
 
 async function main() {
-  console.log("\n🌱 ElectroMart mock data seed\n");
+  console.log('\n🌱 ElectroMart mock data seed\n');
   console.log(`   Demo password: ${DEMO_PASSWORD}\n`);
 
   const hashedPassword = await hashPassword(DEMO_PASSWORD);
@@ -789,7 +753,7 @@ async function main() {
 
   await seedProducts(vendorIdToStoreId, categoryIdMap, brandIdMap);
   console.log(
-    `✅ Products: ${counts.products} (images: ${counts.productImages}, variants: ${counts.productVariants}, specs: ${counts.productSpecifications}, tags: ${counts.productTags})`,
+    `✅ Products: ${counts.products} (images: ${counts.productImages}, variants: ${counts.productVariants}, specs: ${counts.productSpecifications}, tags: ${counts.productTags})`
   );
 
   await seedReviews();
@@ -800,7 +764,7 @@ async function main() {
 
   await seedOrders(vendorIdToStoreId);
   console.log(
-    `✅ Orders: ${counts.orders} (items: ${counts.orderItems}, payments: ${counts.payments}, history: ${counts.orderStatusHistory})`,
+    `✅ Orders: ${counts.orders} (items: ${counts.orderItems}, payments: ${counts.payments}, history: ${counts.orderStatusHistory})`
   );
 
   await seedCart();
@@ -812,12 +776,12 @@ async function main() {
   await seedWishlist();
   console.log(`✅ Wishlist: ${counts.wishlists} (items: ${counts.wishlistItems})`);
 
-  console.log("\n🎉 Seed completed successfully.\n");
+  console.log('\n🎉 Seed completed successfully.\n');
 }
 
 main()
   .catch((error) => {
-    console.error("❌ Seed failed:", error);
+    console.error('❌ Seed failed:', error);
     process.exit(1);
   })
   .finally(async () => {

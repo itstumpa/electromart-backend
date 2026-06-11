@@ -79,7 +79,7 @@ const globalErrorHandler = (
     statusCode = 400;
     message =
       (err as Error & { code?: string }).code === "LIMIT_FILE_SIZE"
-        ? "File too large — maximum size is 5MB"
+        ? "File too large — maximum size is 2MB"
         : (err as Error & { code?: string }).code === "LIMIT_FILE_COUNT"
           ? "Too many files — maximum is 5 images"
           : "File upload error";

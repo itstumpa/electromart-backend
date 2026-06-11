@@ -6,6 +6,7 @@ import { Role } from '@prisma/client';
 import { uploadToCloudinary } from '../../../utils/uploadToCloudinary';
 import ApiError from '../../../utils/apiErrors';
 import { prisma } from '../../../lib/prisma';
+import { invalidateCachePattern } from '../../../utils/cache';
 
 
 export const createUser = catchAsync(async (req: Request, res: Response) => {
@@ -54,6 +55,16 @@ export const uploadAvatar = catchAsync(async (req: Request, res: Response) => {
   if (!file) throw new ApiError(400, 'No image provided');
 
   const result = await uploadToCloudinary(file.buffer, 'electromart/avatars');
+
+  // Invalidate review caches for all products this user has reviewed
+  const userReviews = await prisma.review.findMany({
+    where: { customerId: req.user!.id },
+    select: { productId: true },
+    distinct: ['productId'],
+  });
+  await Promise.all(
+    userReviews.map((r) => invalidateCachePattern(`reviews:product:${r.productId}:*`))
+  );
 
   const user = await prisma.user.update({
     where: { id: req.user!.id },
