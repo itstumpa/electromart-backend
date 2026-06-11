@@ -14,6 +14,11 @@ export const getAllCoupons = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: 200, success: true, message: "Coupons fetched", data: coupons });
 });
 
+export const getPromotionalCoupons = catchAsync(async (req: Request, res: Response) => {
+  const coupons = await CouponService.getPromotionalCoupons();
+  sendResponse(res, { statusCode: 200, success: true, message: "Promotions fetched", data: coupons });
+});
+
 export const toggleCoupon = catchAsync(async (req: Request, res: Response) => {
   const coupon = await CouponService.toggleCoupon(req.params.id as string);
   sendResponse(res, { statusCode: 200, success: true, message: "Coupon toggled", data: coupon });

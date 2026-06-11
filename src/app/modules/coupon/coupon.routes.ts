@@ -9,6 +9,9 @@ import { authorize } from "../../middlewares/authorize";
 
 const router = Router();
 
+// PUBLIC — promotional coupons for top bar / banners
+router.get("/promotions", CouponController.getPromotionalCoupons);
+
 // ADMIN
 router.post("/", authenticate, authorize("ADMIN"), validate(createCouponSchema), CouponController.createCoupon);
 router.get("/", authenticate, authorize("ADMIN"), CouponController.getAllCoupons);

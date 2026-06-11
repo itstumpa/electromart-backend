@@ -100,6 +100,22 @@ export const getAllCoupons = async () => {
   return prisma.coupon.findMany({ orderBy: { createdAt: "desc" } });
 };
 
+// PUBLIC — get active promotional coupons for display (top bar, banners, etc.)
+export const getPromotionalCoupons = async () => {
+  const now = new Date();
+  return prisma.coupon.findMany({
+    where: {
+      isActive: true,
+      AND: [
+        { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+        { OR: [{ expiryDate: null }, { expiryDate: { gte: now } }] },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
+};
+
 // ADMIN — update coupon
 export const updateCoupon = async (id: string, data: UpdateCouponInput) => {
   const existing = await prisma.coupon.findUnique({ where: { id } });
