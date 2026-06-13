@@ -2,12 +2,29 @@
 import { Request, Response } from 'express';
 import catchAsync from '../../../utils/catchAsync';
 import sendResponse from '../../../utils/sendResponse';
+import ApiError from '../../../utils/apiErrors';
 import * as PaymentService from './payment.service';
 
 // CUSTOMER — initiate payment
 export const initiatePayment = catchAsync(async (req: Request, res: Response) => {
   const { orderId, gateway } = req.body;
   const result = await PaymentService.initiatePayment(req.user!.id, orderId, gateway);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Payment initiated',
+    data: result,
+  });
+});
+
+// GUEST — initiate payment
+export const initiateGuestPayment = catchAsync(async (req: Request, res: Response) => {
+  const { orderId, gateway } = req.body;
+  const guestId = req.user!.guestId;
+  if (!guestId) {
+    throw new ApiError(400, "Guest session not found");
+  }
+  const result = await PaymentService.initiateGuestPayment(guestId, orderId, gateway);
   sendResponse(res, {
     statusCode: 200,
     success: true,
@@ -61,7 +78,7 @@ export const refundPayment = catchAsync(async (req: Request, res: Response) => {
 // CUSTOMER/ADMIN — get payment status
 export const getPaymentByOrderId = catchAsync(async (req: Request, res: Response) => {
   const isAdmin = req.user!.role === 'ADMIN';
-  const payment = await PaymentService.getPaymentByOrderId(req.params.orderId as string, req.user!.id, isAdmin);
+  const payment = await PaymentService.getPaymentByOrderId(req.params.orderId as string, req.user!.id, req.user!.guestId, isAdmin);
   sendResponse(res, {
     statusCode: 200,
     success: true,

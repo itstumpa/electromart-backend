@@ -43,3 +43,37 @@ export const getOrderTimeline = async (orderId: string, requesterId: string, rol
     items: order.items,
   };
 };
+
+// PUBLIC — guest order timeline (requires email verification)
+export const getGuestOrderTimeline = async (orderId: string, email: string) => {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      statusHistory: { orderBy: { createdAt: 'asc' } },
+      items: {
+        include: {
+          product: { select: { id: true, name: true, images: { take: 1 } } },
+          store: { select: { id: true, name: true } },
+        },
+      },
+    },
+  });
+
+  if (!order) throw new ApiError(404, 'Order not found');
+
+  // Guest orders must have no userId and email must match
+  if (order.userId) {
+    throw new ApiError(400, 'This order belongs to a registered user. Please sign in to view tracking.');
+  }
+
+  if (order.guestEmail?.toLowerCase() !== email.toLowerCase()) {
+    throw new ApiError(403, 'Email does not match this order');
+  }
+
+  return {
+    orderId: order.id,
+    currentStatus: order.status,
+    timeline: order.statusHistory,
+    items: order.items,
+  };
+};

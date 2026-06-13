@@ -652,25 +652,26 @@ async function seedCart() {
       variantId = variant?.id ?? null;
     }
 
-    await prisma.cartItem.upsert({
-      where: {
-        cartId_productId: {
+    const existingCartItem = await prisma.cartItem.findFirst({
+      where: { cartId, productId: item.productId, variantId },
+    });
+
+    if (existingCartItem) {
+      await prisma.cartItem.update({
+        where: { id: existingCartItem.id },
+        data: { variantId, quantity: item.quantity },
+      });
+    } else {
+      await prisma.cartItem.create({
+        data: {
+          id: item.id,
           cartId,
           productId: item.productId,
+          variantId,
+          quantity: item.quantity,
         },
-      },
-      create: {
-        id: item.id,
-        cartId,
-        productId: item.productId,
-        variantId,
-        quantity: item.quantity,
-      },
-      update: {
-        variantId,
-        quantity: item.quantity,
-      },
-    });
+      });
+    }
     counts.cartItems += 1;
   }
 }

@@ -291,7 +291,10 @@ export const setPrimaryImage = catchAsync(async (req: Request, res: Response) =>
   const { imageId } = req.body;
   if (!imageId) throw new ApiError(400, 'imageId is required');
 
-  const images = await ProductService.setPrimaryImage(imageId, req.params.id, req.user!.id);
+  const productId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const ownerId = Array.isArray(req.user!.id) ? req.user!.id[0] : req.user!.id;
+
+  const images = await ProductService.setPrimaryImage(imageId, productId, ownerId);
 
   sendResponse(res, {
     statusCode: 200,
@@ -308,7 +311,10 @@ export const reorderImages = catchAsync(async (req: Request, res: Response) => {
   const { imageIds } = req.body;
   if (!Array.isArray(imageIds)) throw new ApiError(400, 'imageIds array is required');
 
-  const images = await ProductService.reorderImages(req.params.id, req.user!.id, imageIds);
+  const productId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const ownerId = Array.isArray(req.user!.id) ? req.user!.id[0] : req.user!.id;
+
+  const images = await ProductService.reorderImages(productId, ownerId, imageIds);
 
   sendResponse(res, {
     statusCode: 200,
@@ -322,18 +328,21 @@ export const reorderImages = catchAsync(async (req: Request, res: Response) => {
 // GET PRODUCT IMAGES
 // ─────────────────────────────────────────────
 export const getProductImages = catchAsync(async (req: Request, res: Response) => {
+  const productId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const ownerId = Array.isArray(req.user!.id) ? req.user!.id[0] : req.user!.id;
+
   // Verify ownership
   const product = await prisma.product.findUnique({
-    where: { id: req.params.id as string },
+    where: { id: productId },
     include: { store: true },
   });
   if (!product) throw new ApiError(404, 'Product not found');
-  if (product.store.ownerId !== req.user!.id) {
+  if (product.store.ownerId !== ownerId) {
     throw new ApiError(403, 'You can only view images of your own products');
   }
 
   const images = await prisma.productImage.findMany({
-    where: { productId: req.params.id },
+    where: { productId },
     orderBy: { order: 'asc' },
   });
 

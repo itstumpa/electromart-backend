@@ -68,3 +68,17 @@ export const searchLimiter = rateLimit({
   },
   skip: (req) => isWhitelisted(req),
 });
+
+/** Rate limiter for guest order tracking — 5 requests per 15 min per IP */
+export const guestOrderTrackerLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    statusCode: 429,
+    message: "Too many tracking requests, please try again after 15 minutes",
+  },
+  skip: (req) => isWhitelisted(req),
+});

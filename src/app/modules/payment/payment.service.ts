@@ -1,5 +1,6 @@
 // src/app/modules/payment/payment.service.ts
 import Stripe from "stripe";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../../lib/prisma";
 import { PaymentStatus } from "@prisma/client";
 import ApiError from "../../../utils/apiErrors";
@@ -13,7 +14,7 @@ import {
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
-// ── INITIATE PAYMENT ──────────────────────────────────────────────────────────
+// ── INITIATE PAYMENT (Authenticated User) ─────────────────────────────────────
 
 export const initiatePayment = async (
   customerId: string,
@@ -23,34 +24,87 @@ export const initiatePayment = async (
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
-      user: true,                          // was: customer
+      user: true,
       items: { include: { product: true } },
       payment: true,
     },
   });
 
   if (!order) throw new ApiError(404, "Order not found");
-  if (order.userId !== customerId) throw new ApiError(403, "Access denied"); // was: order.customerId
+  // Allow access for order owner (authenticated)
+  if (order.userId && order.userId !== customerId) {
+    throw new ApiError(403, "Access denied");
+  }
   if (order.payment?.status === "PAID") {
     throw new ApiError(400, "Order already paid");
   }
 
-  const amount = Number(order.total);      // was: order.totalAmount
+  return initiatePaymentForOrder(order, PaymentGateway);
+};
+
+// ── INITIATE PAYMENT (Guest) ──────────────────────────────────────────────────
+
+export const initiateGuestPayment = async (
+  guestId: string,
+  orderId: string,
+  PaymentGateway: "SSLCOMMERZ" | "STRIPE"
+) => {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      user: true,
+      items: { include: { product: true } },
+      payment: true,
+    },
+  });
+
+  if (!order) throw new ApiError(404, "Order not found");
+  // Allow access for guest order owner
+  if (order.guestId && order.guestId !== guestId) {
+    throw new ApiError(403, "Access denied");
+  }
+  if (order.payment?.status === "PAID") {
+    throw new ApiError(400, "Order already paid");
+  }
+
+  return initiatePaymentForOrder(order, PaymentGateway);
+};
+
+// ── SHARED: INITIATE PAYMENT FOR ORDER ────────────────────────────────────────
+
+const initiatePaymentForOrder = async (
+  order: {
+    id: string;
+    userId: string | null;
+    guestId: string | null;
+    guestName: string | null;
+    guestEmail: string | null;
+    total: number | Prisma.Decimal;
+    items: Array<{
+      product: { name: string; price: number | Prisma.Decimal };
+      quantity: number;
+    }>;
+    payment: { status: string } | null;
+    user?: { name: string | null; email: string | null } | null;
+  },
+  PaymentGateway: "SSLCOMMERZ" | "STRIPE"
+) => {
+  const amount = Number(order.total);
 
   // ── SSLCommerz ──────────────────────────────────────────────────────────────
   if (PaymentGateway === "SSLCOMMERZ") {
     const { gatewayUrl, sessionKey } = await initiateSSLCommerzPayment({
-      orderId,
+      orderId: order.id,
       amount,
       currency: "BDT",
-      customerName: order.user.name,       // was: order.customer.name
-      customerEmail: order.user.email,     // was: order.customer.email
+      customerName: order.guestName ?? order.user?.name ?? "Customer",
+      customerEmail: order.guestEmail ?? order.user?.email ?? "guest@example.com",
       customerPhone: "01700000000",
       customerAddress: "Dhaka, Bangladesh",
     });
 
     await prisma.payment.upsert({
-      where: { orderId },
+      where: { orderId: order.id },
       update: {
         gateway: "SSLCOMMERZ",
         status: "PENDING",
@@ -59,7 +113,7 @@ export const initiatePayment = async (
         currency: "BDT",
       },
       create: {
-        orderId,
+        orderId: order.id,
         gateway: "SSLCOMMERZ",
         status: "PENDING",
         sessionId: sessionKey,
@@ -84,13 +138,13 @@ export const initiatePayment = async (
         },
         quantity: item.quantity,
       })),
-      metadata: { orderId },
-      success_url: `${process.env.STRIPE_SUCCESS_URL}?session_id={CHECKOUT_SESSION_ID}&orderId=${orderId}`,
-      cancel_url: `${process.env.STRIPE_CANCEL_URL}?orderId=${orderId}`,
+      metadata: { orderId: order.id },
+      success_url: `${process.env.STRIPE_SUCCESS_URL}?session_id={CHECKOUT_SESSION_ID}&orderId=${order.id}`,
+      cancel_url: `${process.env.STRIPE_CANCEL_URL}?orderId=${order.id}`,
     });
 
     await prisma.payment.upsert({
-      where: { orderId },
+      where: { orderId: order.id },
       update: {
         gateway: "STRIPE",
         status: "PENDING",
@@ -99,7 +153,7 @@ export const initiatePayment = async (
         currency: "USD",
       },
       create: {
-        orderId,
+        orderId: order.id,
         gateway: "STRIPE",
         status: "PENDING",
         sessionId: session.id,
@@ -239,24 +293,30 @@ const confirmPayment = async (
   });
 
   if (order) {
-    await createNotification({
-      userId: order.userId,               // was: order.customerId
-      title: "Payment Successful",
-      message: `Payment confirmed for order #${orderId.slice(-6).toUpperCase()}`,
-      type: "ORDER_PLACED",
-    });
+    if (order.userId) {
+      await createNotification({
+        userId: order.userId,               // was: order.customerId
+        title: "Payment Successful",
+        message: `Payment confirmed for order #${orderId.slice(-6).toUpperCase()}`,
+        type: "ORDER_PLACED",
+      });
+    }
 
-    await sendEmail({
-      to: order.user.email,              // was: order.customer.email
-      subject: "✅ Payment Confirmed — ElectroMart",
-      html: `
-        <p>Hi ${order.user.name},</p>
-        <p>Your payment of <strong>$${Number(order.total)}</strong> for order 
-        <strong>#${orderId.slice(-6).toUpperCase()}</strong> was successful.</p>
-        <p>Transaction ID: <code>${transactionId}</code></p>
-        <p>Your order is now being processed.</p>
-      `,
-    });
+    const recipientEmail = order.user?.email ?? order.guestEmail;
+    const recipientName = order.user?.name ?? order.guestName ?? "Customer";
+    if (recipientEmail) {
+      await sendEmail({
+        to: recipientEmail,
+        subject: "✅ Payment Confirmed — ElectroMart",
+        html: `
+          <p>Hi ${recipientName},</p>
+          <p>Your payment of <strong>$${Number(order.total)}</strong> for order 
+          <strong>#${orderId.slice(-6).toUpperCase()}</strong> was successful.</p>
+          <p>Transaction ID: <code>${transactionId}</code></p>
+          <p>Your order is now being processed.</p>
+        `,
+      });
+    }
   }
 };
 
@@ -312,24 +372,30 @@ export const refundPayment = async (orderId: string, reason: string) => {
     });
   });
 
-  await createNotification({
-    userId: payment.order.userId,          // was: order.customerId
-    title: "Refund Processed",
-    message: `Your refund of ${payment.amount} has been processed`,
-    type: "ORDER_STATUS_CHANGED",
-  });
+  if (payment.order.userId) {
+    await createNotification({
+      userId: payment.order.userId,          // was: order.customerId
+      title: "Refund Processed",
+      message: `Your refund of ${payment.amount} has been processed`,
+      type: "ORDER_STATUS_CHANGED",
+    });
+  }
 
-  await sendEmail({
-    to: payment.order.user.email,          // was: order.customer.email
-    subject: "💰 Refund Processed — ElectroMart",
-    html: `
-      <p>Hi ${payment.order.user.name},</p>
-      <p>Your refund of <strong>${payment.amount} ${payment.currency}</strong> 
-      for order <strong>#${orderId.slice(-6).toUpperCase()}</strong> has been processed.</p>
-      <p>Refund ID: <code>${refundId}</code></p>
-      <p>It may take 3-7 business days to reflect in your account.</p>
-    `,
-  });
+  const refundRecipientEmail = payment.order.user?.email ?? payment.order.guestEmail;
+  const refundRecipientName = payment.order.user?.name ?? payment.order.guestName ?? "Customer";
+  if (refundRecipientEmail) {
+    await sendEmail({
+      to: refundRecipientEmail,
+      subject: "💰 Refund Processed — ElectroMart",
+      html: `
+        <p>Hi ${refundRecipientName},</p>
+        <p>Your refund of <strong>${payment.amount} ${payment.currency}</strong> 
+        for order <strong>#${orderId.slice(-6).toUpperCase()}</strong> has been processed.</p>
+        <p>Refund ID: <code>${refundId}</code></p>
+        <p>It may take 3-7 business days to reflect in your account.</p>
+      `,
+    });
+  }
 
   return { message: "Refund processed successfully", refundId };
 };
@@ -339,16 +405,22 @@ export const refundPayment = async (orderId: string, reason: string) => {
 export const getPaymentByOrderId = async (
   orderId: string,
   customerId: string,
+  guestId: string | undefined,
   isAdmin: boolean
 ) => {
   const payment = await prisma.payment.findUnique({
     where: { orderId },
-    include: { order: { select: { userId: true } } },  // was: customerId
+    include: { order: { select: { userId: true, guestId: true } } },
   });
 
   if (!payment) throw new ApiError(404, "Payment not found");
-  if (!isAdmin && payment.order.userId !== customerId) {  // was: order.customerId
-    throw new ApiError(403, "Access denied");
+  if (!isAdmin) {
+    if (payment.order.userId && payment.order.userId !== customerId) {
+      throw new ApiError(403, "Access denied");
+    }
+    if (payment.order.guestId && payment.order.guestId !== guestId) {
+      throw new ApiError(403, "Access denied");
+    }
   }
 
   return payment;

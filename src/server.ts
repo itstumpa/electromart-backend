@@ -11,6 +11,7 @@ import { initSentry } from "./app/config/sentry";
 import { initSocket } from "./socket/socket";
 import { startLeaderboardJob } from "./jobs/leaderboard.job";
 import { startWeeklyDigestJob } from "./jobs/weeklyDigest.job";
+import { startGuestCleanupJob } from "./jobs/guestCleanup.job";
 import { startAllWorkers } from "./jobs/workers";
 import { getRedis } from "./app/config/redis";
 import logger from "./utils/logger";
@@ -41,6 +42,7 @@ async function startServer() {
       // background jobs
       startLeaderboardJob();
       startWeeklyDigestJob();
+      startGuestCleanupJob();
       startAllWorkers();
     });
 

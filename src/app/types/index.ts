@@ -8,6 +8,8 @@ declare global {
       email: string;
       role: Role;
       isEmailVerified: boolean;
+      /** Set for guest sessions when no JWT auth is present */
+      guestId?: string;
     }
       interface ProcessEnv {
     JWT_ACCESS_SECRET: string;

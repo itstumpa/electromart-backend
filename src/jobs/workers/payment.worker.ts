@@ -36,22 +36,27 @@ const processPaymentJob = async (job: Job<PaymentJobData>) => {
     });
 
     if (order) {
-      // queue email + notification
-      await emailQueue.add("payment-confirmed", {
-        type: "PAYMENT_CONFIRMED",
-        to: order.user.email,
-        customerName: order.user.name,
-        orderId,
-        amount: Number(order.total.toFixed(2)),
-        transactionId,
-      });
+      const recipientEmail = order.user?.email ?? order.guestEmail;
+      const recipientName = order.user?.name ?? order.guestName ?? "Customer";
+      if (recipientEmail) {
+        await emailQueue.add("payment-confirmed", {
+          type: "PAYMENT_CONFIRMED",
+          to: recipientEmail,
+          customerName: recipientName,
+          orderId,
+          amount: Number(order.total.toFixed(2)),
+          transactionId,
+        });
+      }
 
-      await notificationQueue.add("payment-confirmed", {
-        userId: order.userId,
-        title: "Payment Successful",
-        message: `Payment confirmed for order #${orderId.slice(-6).toUpperCase()}`,
-        type: "PAYMENT_CONFIRMED",
-      });
+      if (order.userId) {
+        await notificationQueue.add("payment-confirmed", {
+          userId: order.userId,
+          title: "Payment Successful",
+          message: `Payment confirmed for order #${orderId.slice(-6).toUpperCase()}`,
+          type: "PAYMENT_CONFIRMED",
+        });
+      }
     }
 
     logger.info(`✅ Payment confirmed for order ${orderId}`);

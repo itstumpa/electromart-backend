@@ -4,6 +4,7 @@ import express from "express";
 import * as PaymentController from "./payment.controller";
 import { authenticate } from "../../middlewares/authenticate";
 import { authorize } from "../../middlewares/authorize";
+import { optionalAuth, authenticateOrGuest } from "../../middlewares/guest";
 
 
 const router = Router();
@@ -16,10 +17,17 @@ router.post(
   PaymentController.initiatePayment
 );
 
+// ── GUEST — initiate ──────────────────────────────────────────────────────────
+router.post(
+  "/initiate/guest",
+  optionalAuth,
+  PaymentController.initiateGuestPayment
+);
+
 // ── CUSTOMER/ADMIN — get status ───────────────────────────────────────────────
 router.get(
   "/order/:orderId",
-  authenticate,
+  authenticateOrGuest,
   PaymentController.getPaymentByOrderId
 );
 

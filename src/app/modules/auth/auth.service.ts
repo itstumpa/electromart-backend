@@ -36,12 +36,100 @@ const generateStoreSlug = (name: string) =>
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9-]/g, "");
 
+// ── Merge guest data into user account ──────────────────────────────────────
+const mergeGuestData = async (guestId: string, userId: string) => {
+  // Merge cart: move guest cart items to user cart
+  const guestCart = await prisma.cart.findUnique({
+    where: { guestId },
+    include: { items: true },
+  });
+
+  if (guestCart && guestCart.items.length > 0) {
+    const userCart = await prisma.cart.findUnique({
+      where: { userId },
+      include: { items: true },
+    });
+
+    if (userCart) {
+      // Merge items into existing user cart (skip duplicates)
+      for (const item of guestCart.items) {
+        const existing = userCart.items.find(
+          (i) => i.productId === item.productId && i.variantId === item.variantId,
+        );
+        if (existing) {
+          await prisma.cartItem.update({
+            where: { id: existing.id },
+            data: { quantity: existing.quantity + item.quantity },
+          });
+        } else {
+          await prisma.cartItem.create({
+            data: {
+              cartId: userCart.id,
+              productId: item.productId,
+              variantId: item.variantId,
+              quantity: item.quantity,
+            },
+          });
+        }
+      }
+    } else {
+      // Reassign guest cart to user
+      await prisma.cart.update({
+        where: { id: guestCart.id },
+        data: { userId, guestId: null },
+      });
+    }
+  } else if (guestCart) {
+    // Empty guest cart — just delete it
+    await prisma.cart.delete({ where: { id: guestCart.id } });
+  }
+
+  // Merge wishlist: move guest wishlist items to user wishlist
+  const guestWishlist = await prisma.wishlist.findUnique({
+    where: { guestId },
+    include: { items: true },
+  });
+
+  if (guestWishlist && guestWishlist.items.length > 0) {
+    const userWishlist = await prisma.wishlist.findUnique({
+      where: { userId },
+      include: { items: true },
+    });
+
+    if (userWishlist) {
+      // Add items not already in user wishlist
+      for (const item of guestWishlist.items) {
+        const exists = userWishlist.items.some(
+          (i) => i.productId === item.productId,
+        );
+        if (!exists) {
+          await prisma.wishlistItem.create({
+            data: {
+              wishlistId: userWishlist.id,
+              productId: item.productId,
+            },
+          });
+        }
+      }
+    } else {
+      // Reassign guest wishlist to user
+      await prisma.wishlist.update({
+        where: { id: guestWishlist.id },
+        data: { userId, guestId: null },
+      });
+    }
+  } else if (guestWishlist) {
+    await prisma.wishlist.delete({ where: { id: guestWishlist.id } });
+  }
+};
+
 export const signup = async (data: {
   name: string;
   email: string;
   password: string;
   role?: "CUSTOMER" | "VENDOR" | "ADMIN";
   storeName?: string;
+  guestId?: string;
 }) => {
   const existing = await prisma.user.findUnique({
     where: { email: data.email },
@@ -110,6 +198,11 @@ export const signup = async (data: {
             role: true,
           },
         });
+
+  // Merge guest cart/wishlist if guestId provided
+  if (data.guestId) {
+    await mergeGuestData(data.guestId, user.id);
+  }
 
 const verifyUrl = `${process.env.BACKEND_URL}/api/v1/auth/verify-email?token=${emailVerifyToken}`;
 
@@ -183,6 +276,7 @@ export const signin = async (
   email: string,
   password: string,
   res: Response,
+  guestId?: string,
 ) => {
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) throw new ApiError(401, "Invalid email or password");
@@ -192,6 +286,11 @@ export const signin = async (
 
   if (!user.isEmailVerified)
     throw new ApiError(403, "Please verify your email before signing in");
+
+  // Merge guest cart/wishlist before signing in
+  if (guestId) {
+    await mergeGuestData(guestId, user.id);
+  }
 
   const accessToken = generateAccessToken(user.id, user.role);
   const refreshToken = generateRefreshToken(user.id);

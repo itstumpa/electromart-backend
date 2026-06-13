@@ -15,16 +15,43 @@ export const placeOrder = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: 201, success: true, message: 'Order placed successfully', data: order });
 });
 
+export const placeGuestOrder = catchAsync(async (req: Request, res: Response) => {
+  const order = await OrderService.placeGuestOrder(
+    req.user!.guestId!,
+    req.body.guestEmail,
+    req.body.guestName,
+    req.body.guestPhone,
+    req.body.shippingAddress,
+    req.body.couponCode,
+  );
+  sendResponse(res, { statusCode: 201, success: true, message: 'Order placed successfully', data: order });
+});
+
 export const getMyOrders = catchAsync(async (req: Request, res: Response) => {
   const { page, limit, sortBy, sortOrder } = req.query;
   const result = await OrderService.getMyOrders(req.user!.id, { page, limit, sortBy, sortOrder } as IOptions);
   sendResponse(res, { statusCode: 200, success: true, message: 'Orders fetched', meta: result.meta, data: result.data });
 });
 
+export const getGuestOrders = catchAsync(async (req: Request, res: Response) => {
+  const { page, limit, sortBy, sortOrder } = req.query;
+  const email = req.user!.guestId || (req.query.email as string);
+  const result = await OrderService.getGuestOrders(email, { page, limit, sortBy, sortOrder } as IOptions);
+  sendResponse(res, { statusCode: 200, success: true, message: 'Orders fetched', meta: result.meta, data: result.data });
+});
+
 export const getOrderById = catchAsync(async (req: Request, res: Response) => {
-  const role = req.user!.role;
+  const role = req.user?.role ?? '';
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
-  const order = await OrderService.getOrderById(req.params.id as string, req.user!.id, isAdmin);
+  const order = await OrderService.getOrderById(req.params.id as string, req.user?.id ?? '', req.user?.guestId, isAdmin);
+  sendResponse(res, { statusCode: 200, success: true, message: 'Order fetched', data: order });
+});
+
+export const trackGuestOrder = catchAsync(async (req: Request, res: Response) => {
+  const order = await OrderService.trackGuestOrder(
+    req.params.orderId as string,
+    req.query.email as string,
+  );
   sendResponse(res, { statusCode: 200, success: true, message: 'Order fetched', data: order });
 });
 

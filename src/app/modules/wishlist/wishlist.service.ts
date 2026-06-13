@@ -1,6 +1,15 @@
 import { prisma } from "../../../lib/prisma";
 import ApiError from "../../../utils/apiErrors";
 
+// ── Owner resolution helpers ─────────────────────────────────────────────────
+type WishlistOwner = { userId: string } | { guestId: string };
+
+const wishlistWhere = (owner: WishlistOwner) =>
+  "userId" in owner ? { userId: owner.userId } : { guestId: owner.guestId };
+
+const wishlistData = (owner: WishlistOwner) =>
+  "userId" in owner ? { userId: owner.userId } : { guestId: owner.guestId };
+
 const productSelect = {
   id: true,
   name: true,
@@ -12,10 +21,10 @@ const productSelect = {
   images: { take: 1, select: { url: true } },
 } as const;
 
-const getOrCreateWishlist = async (userId: string) => {
-  let wishlist = await prisma.wishlist.findUnique({ where: { userId } });
+const getOrCreateWishlist = async (owner: WishlistOwner) => {
+  let wishlist = await prisma.wishlist.findUnique({ where: wishlistWhere(owner) });
   if (!wishlist) {
-    wishlist = await prisma.wishlist.create({ data: { userId } });
+    wishlist = await prisma.wishlist.create({ data: wishlistData(owner) });
   }
   return wishlist;
 };
@@ -48,8 +57,8 @@ const formatWishlistItem = (item: {
   addedAt: item.createdAt,
 });
 
-export const getWishlist = async (userId: string) => {
-  const wishlist = await getOrCreateWishlist(userId);
+export const getWishlist = async (owner: WishlistOwner) => {
+  const wishlist = await getOrCreateWishlist(owner);
   const items = await prisma.wishlistItem.findMany({
     where: { wishlistId: wishlist.id },
     include: { product: { select: productSelect } },
@@ -58,7 +67,7 @@ export const getWishlist = async (userId: string) => {
   return items.map(formatWishlistItem);
 };
 
-export const addToWishlist = async (userId: string, productId: string) => {
+export const addToWishlist = async (owner: WishlistOwner, productId: string) => {
   const product = await prisma.product.findUnique({
     where: { id: productId },
     select: { id: true, isActive: true },
@@ -67,7 +76,7 @@ export const addToWishlist = async (userId: string, productId: string) => {
     throw new ApiError(404, "Product not found");
   }
 
-  const wishlist = await getOrCreateWishlist(userId);
+  const wishlist = await getOrCreateWishlist(owner);
 
   const existing = await prisma.wishlistItem.findUnique({
     where: {
@@ -82,11 +91,11 @@ export const addToWishlist = async (userId: string, productId: string) => {
     data: { wishlistId: wishlist.id, productId },
   });
 
-  return getWishlist(userId);
+  return getWishlist(owner);
 };
 
-export const removeFromWishlist = async (userId: string, productId: string) => {
-  const wishlist = await prisma.wishlist.findUnique({ where: { userId } });
+export const removeFromWishlist = async (owner: WishlistOwner, productId: string) => {
+  const wishlist = await prisma.wishlist.findUnique({ where: wishlistWhere(owner) });
   if (!wishlist) throw new ApiError(404, "Wishlist not found");
 
   const item = await prisma.wishlistItem.findUnique({
@@ -97,19 +106,19 @@ export const removeFromWishlist = async (userId: string, productId: string) => {
   if (!item) throw new ApiError(404, "Item not in wishlist");
 
   await prisma.wishlistItem.delete({ where: { id: item.id } });
-  return getWishlist(userId);
+  return getWishlist(owner);
 };
 
-export const clearWishlist = async (userId: string) => {
-  const wishlist = await prisma.wishlist.findUnique({ where: { userId } });
+export const clearWishlist = async (owner: WishlistOwner) => {
+  const wishlist = await prisma.wishlist.findUnique({ where: wishlistWhere(owner) });
   if (!wishlist) return { message: "Wishlist cleared" };
 
   await prisma.wishlistItem.deleteMany({ where: { wishlistId: wishlist.id } });
   return { message: "Wishlist cleared" };
 };
 
-export const checkWishlistItem = async (userId: string, productId: string) => {
-  const wishlist = await prisma.wishlist.findUnique({ where: { userId } });
+export const checkWishlistItem = async (owner: WishlistOwner, productId: string) => {
+  const wishlist = await prisma.wishlist.findUnique({ where: wishlistWhere(owner) });
   if (!wishlist) return { inWishlist: false };
 
   const item = await prisma.wishlistItem.findUnique({

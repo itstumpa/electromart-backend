@@ -51,6 +51,7 @@ export const createProduct = async (
     price: number;
     stock: number;
     categoryId: string;
+    brandId?: string;
     images?: { url: string; publicId?: string | null }[];
     specifications?: { key: string; value: string }[];
     variants?: { name: string; value: string; price?: number; stock: number }[];
@@ -63,6 +64,14 @@ export const createProduct = async (
     where: { id: data.categoryId },
   });
   if (!category) throw new ApiError(404, 'Category not found');
+
+  // Validate brand if provided
+  if (data.brandId) {
+    const brand = await prisma.brand.findUnique({
+      where: { id: data.brandId },
+    });
+    if (!brand) throw new ApiError(404, 'Brand not found');
+  }
 
   const slug = await generateUniqueSlug(data.name, prisma.product);
 
@@ -375,9 +384,18 @@ export const updateProduct = async (productId: string, ownerId: string, data: Re
         value: string;
       }[]
     | undefined;
+  const brandId = data.brandId as string | undefined;
+
+  // Validate brand if provided
+  if (brandId) {
+    const brand = await prisma.brand.findUnique({
+      where: { id: brandId },
+    });
+    if (!brand) throw new ApiError(404, 'Brand not found');
+  }
 
   // Remove helper fields so they are not spread into Prisma update data
-  const { removeImageIds: _removeImageIds, newImages: _newImages, specifications: _specifications, imageUrl: _imageUrl, primaryImageId: _primaryImageId, ...productData } = data;
+  const { removeImageIds: _removeImageIds, newImages: _newImages, specifications: _specifications, imageUrl: _imageUrl, primaryImageId: _primaryImageId, brandId: _brandId, ...productData } = data;
 
   // 1. Delete selected images from Cloudinary
   if (removeImageIds.length) {
@@ -431,6 +449,7 @@ export const updateProduct = async (productId: string, ownerId: string, data: Re
     where: { id: productId },
     data: {
       ...(productData as Record<string, unknown>),
+      ...(brandId !== undefined ? { brandId } : {}),
 
       images: {
         deleteMany: {},

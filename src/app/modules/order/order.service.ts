@@ -23,26 +23,65 @@ type ShippingAddressInput = {
   country: string;
 };
 
+type CartOwner = { userId: string } | { guestId: string };
+
+const cartWhere = (owner: CartOwner) =>
+  "userId" in owner ? { userId: owner.userId } : { guestId: owner.guestId };
+
+// ── Place order (authenticated user) ─────────────────────────────────────────
 export const placeOrder = async (
   customerId: string,
   shippingAddress: ShippingAddressInput,
   couponCode?: string,
 ) => {
-const cart = await prisma.cart.findUnique({
-  where: { userId: customerId },
-  include: {
-    items: {
-      include: {
-        product: {
-          include: {
-            images: { take: 1 }, // ← add this
+  return placeOrderBase({ userId: customerId }, shippingAddress, couponCode, {
+    customerId,
+  });
+};
+
+// ── Place order (guest) ──────────────────────────────────────────────────────
+export const placeGuestOrder = async (
+  guestId: string,
+  guestEmail: string,
+  guestName: string,
+  guestPhone: string,
+  shippingAddress: ShippingAddressInput,
+  couponCode?: string,
+) => {
+  return placeOrderBase({ guestId }, shippingAddress, couponCode, {
+    guestId,
+    guestEmail,
+    guestName,
+    guestPhone,
+  });
+};
+
+// ── Internal: common order placement logic ───────────────────────────────────
+type OrderOwnerInfo =
+  | { customerId: string }
+  | { guestId: string; guestEmail: string; guestName: string; guestPhone: string };
+
+const placeOrderBase = async (
+  owner: CartOwner,
+  shippingAddress: ShippingAddressInput,
+  couponCode: string | undefined,
+  ownerInfo: OrderOwnerInfo,
+) => {
+  const cart = await prisma.cart.findUnique({
+    where: cartWhere(owner),
+    include: {
+      items: {
+        include: {
+          product: {
+            include: {
+              images: { take: 1 },
+            },
           },
+          variant: true,
         },
-        variant: true, // ← add this if you need variant details
       },
     },
-  },
-});
+  });
 
   if (!cart || cart.items.length === 0) {
     throw new ApiError(400, 'Your cart is empty');
@@ -85,26 +124,36 @@ const cart = await prisma.cart.findUnique({
   const total = subtotal + shippingCost + tax - discount;
 
   const order = await prisma.$transaction(async (tx) => {
-    const newOrder = await tx.order.create({
-      data: {
-        userId: customerId,
-        subtotal,
-        shippingCost,
-        tax,
-        total,
-        discount,
-        couponId: couponId ?? null,
-items: {
-  create: cart.items.map((item) => ({
-    productId: item.productId,
-    storeId: item.product.storeId,
-    quantity: item.quantity,
-    priceAtTime: item.product.price,
-    productImage: item.product.images[0]?.url ?? '',
-    variant: item.variantId ?? null, // just the ID string, or a label if you prefer
-  })),
-},
+    const orderData: any = {
+      subtotal,
+      shippingCost,
+      tax,
+      total,
+      discount,
+      couponId: couponId ?? null,
+      items: {
+        create: cart.items.map((item) => ({
+          productId: item.productId,
+          storeId: item.product.storeId,
+          quantity: item.quantity,
+          priceAtTime: item.product.price,
+          productImage: item.product.images[0]?.url ?? '',
+          variant: item.variantId ?? null,
+        })),
       },
+    };
+
+    if ('customerId' in ownerInfo) {
+      orderData.userId = ownerInfo.customerId;
+    } else {
+      orderData.guestId = ownerInfo.guestId;
+      orderData.guestEmail = ownerInfo.guestEmail;
+      orderData.guestName = ownerInfo.guestName;
+      orderData.guestPhone = ownerInfo.guestPhone;
+    }
+
+    const newOrder = await tx.order.create({
+      data: orderData,
       include: {
         items: {
           include: {
@@ -137,7 +186,6 @@ items: {
 
     await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
-    // Increment coupon usage count if a coupon was applied
     if (couponId) {
       await tx.coupon.update({
         where: { id: couponId },
@@ -148,36 +196,56 @@ items: {
     return newOrder;
   });
 
+  await addStatusHistory(order.id, OrderStatus.PENDING, 'Order placed successfully');
 
-await addStatusHistory(order.id, OrderStatus.PENDING, 'Order placed successfully');
+  const customerName = 'customerId' in ownerInfo ? '' : ownerInfo.guestName;
+  const customerEmail = 'customerId' in ownerInfo ? '' : ownerInfo.guestEmail;
 
-  const customer = await prisma.user.findUnique({
-    where: { id: customerId },
-    select: { name: true, email: true },
-  });
+  if ('customerId' in ownerInfo) {
+    // ── Authenticated user notifications ──
+    const customer = await prisma.user.findUnique({
+      where: { id: ownerInfo.customerId },
+      select: { name: true, email: true },
+    });
 
-  // notify customer — email queue only (pick one path)
-  await emailQueue.add('order-confirmed', {
-    type: 'ORDER_CONFIRMED',
-    to: customer!.email,
-    customerName: customer!.name,
-    orderId: order.id,
-    totalAmount: Number(total),
-    items: cart.items.map((i) => ({
-      name: i.product.name,
-      quantity: i.quantity,
-      price: Number(i.product.price),
-    })),
-  });
+    if (customer) {
+      await emailQueue.add('order-confirmed', {
+        type: 'ORDER_CONFIRMED',
+        to: customer.email,
+        customerName: customer.name,
+        orderId: order.id,
+        totalAmount: Number(total),
+        items: cart.items.map((i) => ({
+          name: i.product.name,
+          quantity: i.quantity,
+          price: Number(i.product.price),
+        })),
+      });
 
-  await notificationQueue.add('order-placed', {
-    userId: customerId,
-    title: 'Order Placed',
-    message: `Your order #${order.id.slice(-6).toUpperCase()} was placed`,
-    type: 'ORDER_PLACED',
-  });
+      await notificationQueue.add('order-placed', {
+        userId: ownerInfo.customerId,
+        title: 'Order Placed',
+        message: `Your order #${order.id.slice(-6).toUpperCase()} was placed`,
+        type: 'ORDER_PLACED',
+      });
+    }
+  } else {
+    // ── Guest email notification ──
+    await emailQueue.add('order-confirmed', {
+      type: 'ORDER_CONFIRMED',
+      to: ownerInfo.guestEmail,
+      customerName: ownerInfo.guestName,
+      orderId: order.id,
+      totalAmount: Number(total),
+      items: cart.items.map((i) => ({
+        name: i.product.name,
+        quantity: i.quantity,
+        price: Number(i.product.price),
+      })),
+    });
+  }
 
-  // notify each unique vendor
+  // ── Notify vendors (common for both auth and guest) ──
   const vendorMap = new Map<
     string,
     {
@@ -232,7 +300,7 @@ await addStatusHistory(order.id, OrderStatus.PENDING, 'Order placed successfully
   return order;
 };
 
-// CUSTOMER — get their own orders
+// CUSTOMER — get their own orders (supports both userId and guestId)
 export const getMyOrders = async (userId: string, options: IOptions) => {
   const { page, limit, skip, sortBy, sortOrder } = paginationHelper.calculatePagination(options);
 
@@ -264,8 +332,40 @@ export const getMyOrders = async (userId: string, options: IOptions) => {
   };
 };
 
-// CUSTOMER — get single order (own only)
-export const getOrderById = async (orderId: string, userId: string, isAdmin: boolean) => {
+// GUEST — get guest orders by email
+export const getGuestOrders = async (guestEmail: string, options: IOptions) => {
+  const { page, limit, skip, sortBy, sortOrder } = paginationHelper.calculatePagination(options);
+
+  const where = { guestEmail };
+
+  const [data, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: {
+        items: {
+          include: {
+            product: { select: { id: true, name: true, images: { take: 1 } } },
+            store: { select: { id: true, name: true } },
+          },
+        },
+        shipping: true,
+        payment: true,
+      },
+      orderBy: { [sortBy]: sortOrder },
+      skip,
+      take: limit,
+    }),
+    prisma.order.count({ where }),
+  ]);
+
+  return {
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    data,
+  };
+};
+
+// CUSTOMER / GUEST — get single order (own only)
+export const getOrderById = async (orderId: string, userId: string, guestId: string | undefined, isAdmin: boolean) => {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
@@ -286,8 +386,48 @@ export const getOrderById = async (orderId: string, userId: string, isAdmin: boo
 
   if (!order) throw new ApiError(404, 'Order not found');
 
-  if (!isAdmin && order.userId !== userId) {
-    throw new ApiError(403, 'Access denied');
+  // Allow access for: admin, order owner (userId), or guest who owns the order
+  if (!isAdmin) {
+    if (order.userId && order.userId !== userId) {
+      throw new ApiError(403, 'Access denied');
+    }
+    if (order.guestId && order.guestId !== guestId) {
+      throw new ApiError(403, 'Access denied');
+    }
+  }
+
+  return order;
+};
+
+// PUBLIC — track guest order by order number + email (no auth required)
+export const trackGuestOrder = async (orderId: string, email: string) => {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      items: {
+        include: {
+          product: { select: { id: true, name: true, images: { take: 1 } } },
+          store: { select: { id: true, name: true } },
+        },
+      },
+      shipping: true,
+      payment: true,
+      statusHistory: {
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  });
+
+  if (!order) throw new ApiError(404, 'Order not found');
+
+  // Guest orders: verify email matches
+  if (order.userId) {
+    // This is not a guest order
+    throw new ApiError(400, 'This order belongs to a registered user. Please sign in to view it.');
+  }
+
+  if (order.guestEmail?.toLowerCase() !== email.toLowerCase()) {
+    throw new ApiError(403, 'Email does not match this order');
   }
 
   return order;
@@ -365,7 +505,7 @@ export const cancelOrder = async (orderId: string, userId: string) => {
 // VENDOR — get orders containing their store items
 export const getVendorOrders = async (ownerId: string) => {
   const store = await prisma.store.findUnique({ where: { ownerId } });
-  if (!store) throw new ApiError(404, 'Store not found');
+  if (!store) return []; // Return empty array instead of throwing 404
 
   return prisma.orderItem.findMany({
     where: { storeId: store.id },
@@ -417,7 +557,7 @@ export const updateOrderItemStatus = async (
     },
   });
 
-  if (orderWithUser) {
+  if (orderWithUser?.user) {
     await createNotification({
       userId: orderWithUser.user.id,
       title: 'Order Status Updated',

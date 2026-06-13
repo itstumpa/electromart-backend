@@ -3,15 +3,24 @@ import { prisma } from "../../../lib/prisma";
 import ApiError from "../../../utils/apiErrors";
 import { formatCartItemResponse } from "./formatter/formatter.viewCart";
 
-// ── Helper: get or create cart for user ──────────────────────────────────────
-const getOrCreateCart = async (userId: string) => {
-  let cart = await prisma.cart.findUnique({
-    where: { userId },
-  });
+// ── Owner resolution helpers ─────────────────────────────────────────────────
+// Every cart function accepts either a userId (authenticated) or guestId (guest).
+type CartOwner = { userId: string } | { guestId: string };
+
+const cartWhere = (owner: CartOwner) =>
+  "userId" in owner ? { userId: owner.userId } : { guestId: owner.guestId };
+
+const cartData = (owner: CartOwner) =>
+  "userId" in owner ? { userId: owner.userId } : { guestId: owner.guestId };
+
+// ── Helper: get or create cart for user / guest ──────────────────────────────
+const getOrCreateCart = async (owner: CartOwner) => {
+  const where = cartWhere(owner);
+  let cart = await prisma.cart.findUnique({ where });
 
   if (!cart) {
     cart = await prisma.cart.create({
-      data: { userId },
+      data: cartData(owner),
     });
   }
 
@@ -19,9 +28,9 @@ const getOrCreateCart = async (userId: string) => {
 };
 
 // ── Helper: get full cart with items ─────────────────────────────────────────
-const getFullCart = async (userId: string) => {
+const getFullCart = async (owner: CartOwner) => {
   const cart = await prisma.cart.findUnique({
-    where: { userId },
+    where: cartWhere(owner),
     include: {
       items: {
         include: {
@@ -77,8 +86,6 @@ const computeDiscountAmount = (
 };
 
 // ── Helper: build coupon summary for a cart ───────────────────────────────────
-// Always re-fetches the coupon from the DB so stale/deactivated coupons
-// are detected immediately without needing the frontend to do anything.
 const buildCouponSummary = async (
   couponId: string | null,
   cartTotal: number
@@ -96,7 +103,6 @@ const buildCouponSummary = async (
 
   const coupon = await prisma.coupon.findUnique({ where: { id: couponId } });
 
-  // Coupon deleted or deactivated — clear it from the cart silently
   if (!coupon || !coupon.isActive) {
     await prisma.cart.updateMany({
       where: { couponId },
@@ -105,9 +111,7 @@ const buildCouponSummary = async (
     return { couponId: null, couponCode: null, discountPercent: 0, discountType: null, discountValue: 0, discountAmount: 0 };
   }
 
-  // Check minimum order amount
   if (coupon.minOrderAmount && cartTotal < coupon.minOrderAmount) {
-    // Keep coupon on cart but don't apply discount — let frontend show warning
     return {
       couponId: coupon.id,
       couponCode: coupon.code,
@@ -137,9 +141,9 @@ const buildCouponSummary = async (
 };
 
 // ── VIEW cart ─────────────────────────────────────────────────────────────────
-export const viewCart = async (userId: string) => {
+export const viewCart = async (owner: CartOwner) => {
   const cart = await prisma.cart.findUnique({
-    where: { userId },
+    where: cartWhere(owner),
     include: {
       items: {
         include: {
@@ -197,9 +201,7 @@ export const viewCart = async (userId: string) => {
 };
 
 // ── APPLY coupon to cart ──────────────────────────────────────────────────────
-// Validates the coupon, then persists couponId on the Cart row.
-// Discount amounts are NOT stored — they are always recomputed on retrieval.
-export const applyCartCoupon = async (userId: string, code: string) => {
+export const applyCartCoupon = async (owner: CartOwner, code: string) => {
   const coupon = await prisma.coupon.findUnique({
     where: { code: code.toUpperCase() },
   });
@@ -227,7 +229,7 @@ export const applyCartCoupon = async (userId: string, code: string) => {
   }
 
   const cart = await prisma.cart.findUnique({
-    where: { userId },
+    where: cartWhere(owner),
     include: {
       items: { include: { product: { select: { price: true } } } },
     },
@@ -249,32 +251,30 @@ export const applyCartCoupon = async (userId: string, code: string) => {
     );
   }
 
-  // Persist the coupon reference on the cart
   await prisma.cart.update({
-    where: { userId },
+    where: cartWhere(owner),
     data: { couponId: coupon.id },
   });
 
-  // Return the updated cart view (recomputes everything from live data)
-  return viewCart(userId);
+  return viewCart(owner);
 };
 
 // ── REMOVE coupon from cart ───────────────────────────────────────────────────
-export const removeCartCoupon = async (userId: string) => {
-  const cart = await prisma.cart.findUnique({ where: { userId } });
+export const removeCartCoupon = async (owner: CartOwner) => {
+  const cart = await prisma.cart.findUnique({ where: cartWhere(owner) });
   if (!cart) throw new ApiError(404, "Cart not found");
 
   await prisma.cart.update({
-    where: { userId },
+    where: cartWhere(owner),
     data: { couponId: null },
   });
 
-  return viewCart(userId);
+  return viewCart(owner);
 };
 
 // ── ADD item ──────────────────────────────────────────────────────────────────
 export const addToCart = async (
-  userId: string,
+  owner: CartOwner,
   productId: string,
   quantity: number,
   variantId?: string
@@ -285,7 +285,7 @@ export const addToCart = async (
 
   if (!product) throw new ApiError(404, "Product not found");
 
-  const cart = await getOrCreateCart(userId);
+  const cart = await getOrCreateCart(owner);
 
   const normalizedVariantId = variantId ?? null;
 
@@ -298,7 +298,6 @@ export const addToCart = async (
   });
 
   const existingQty = existing?.quantity ?? 0;
-
   const totalQty = existingQty + quantity;
 
   if (product.stock < totalQty) {
@@ -324,16 +323,17 @@ export const addToCart = async (
     });
   }
 
-  return getFullCart(userId);
+  return getFullCart(owner);
 };
+
 // ── UPDATE quantity ───────────────────────────────────────────────────────────
 export const updateCartItem = async (
-  userId: string,
+  owner: CartOwner,
   productId: string,
   quantity: number,
   variantId: string,
 ) => {
-  const cart = await prisma.cart.findUnique({ where: { userId } });
+  const cart = await prisma.cart.findUnique({ where: cartWhere(owner) });
   if (!cart) throw new ApiError(404, "Cart not found");
   const normalizedVariantId = variantId ?? null;
   const item = await prisma.cartItem.findFirst({
@@ -341,7 +341,6 @@ export const updateCartItem = async (
   });
   if (!item) throw new ApiError(404, "Item not in cart");
 
-  // validate stock
   const product = await prisma.product.findUnique({ where: { id: productId } });
   if (!product) throw new ApiError(404, "Product not found");
   if (product.stock < quantity) {
@@ -353,12 +352,12 @@ export const updateCartItem = async (
     data: { quantity },
   });
 
-  return getFullCart(userId);
+  return getFullCart(owner);
 };
 
 // ── REMOVE single item ────────────────────────────────────────────────────────
-export const removeFromCart = async (userId: string, productId: string, variantId: string) => {
-  const cart = await prisma.cart.findUnique({ where: { userId } });
+export const removeFromCart = async (owner: CartOwner, productId: string, variantId: string) => {
+  const cart = await prisma.cart.findUnique({ where: cartWhere(owner) });
   if (!cart) throw new ApiError(404, "Cart not found");
   const normalizedVariantId = variantId ?? null;
   const item = await prisma.cartItem.findFirst({
@@ -369,27 +368,26 @@ export const removeFromCart = async (userId: string, productId: string, variantI
 
   await prisma.cartItem.delete({ where: { id: item.id } });
 
-  return getFullCart(userId);
+  return getFullCart(owner);
 };
 
 // ── CLEAR cart ────────────────────────────────────────────────────────────────
-export const clearCart = async (userId: string) => {
-  const cart = await prisma.cart.findUnique({ where: { userId } });
+export const clearCart = async (owner: CartOwner) => {
+  const cart = await prisma.cart.findUnique({ where: cartWhere(owner) });
   if (!cart) return { message: "Cart already empty" };
 
   await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
   return { message: "Cart cleared" };
 };
 
-// ── MERGE guest cart into DB cart ─────────────────────────────────────────────
+// ── MERGE guest cart into DB cart (called on login/register) ──────────────────
 export const mergeCart = async (
   userId: string,
   guestItems: { productId: string; quantity: number; variantId: string }[]
 ) => {
-  const cart = await getOrCreateCart(userId);
+  const cart = await getOrCreateCart({ userId });
 
   for (const guestItem of guestItems) {
-    // silently skip invalid products during merge
     const product = await prisma.product.findUnique({
       where: { id: guestItem.productId, isActive: true },
     });
@@ -400,7 +398,6 @@ export const mergeCart = async (
     });
 
     if (existing) {
-      // add quantities but cap at stock
       const newQty = Math.min(
         existing.quantity + guestItem.quantity,
         product.stock
@@ -424,5 +421,5 @@ export const mergeCart = async (
     }
   }
 
-  return getFullCart(userId);
+  return getFullCart({ userId });
 };

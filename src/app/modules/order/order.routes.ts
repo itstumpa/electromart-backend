@@ -2,27 +2,36 @@
 import { Router } from "express";
 import * as OrderController from "./order.controller";
 import { authenticate } from "../../middlewares/authenticate";
+import { optionalAuth, authenticateOrGuest } from "../../middlewares/guest";
 import { authorize } from "../../middlewares/authorize";
 import { validate } from "../../middlewares/validate";
 import {
   placeOrderSchema,
+  placeGuestOrderSchema,
+  trackGuestOrderSchema,
   updateOrderItemStatusSchema,
   updateOrderStatusSchema,
 } from "./order.validation";
+import { guestOrderTrackerLimiter } from "../../middlewares/rateLimiter";
 
 const router = Router();
 
-// CUSTOMER
+// ── Guest order routes ───────────────────────────────────────────────────────
+router.post("/guest", optionalAuth, validate(placeGuestOrderSchema), OrderController.placeGuestOrder);
+router.get("/guest/track/:orderId", guestOrderTrackerLimiter, validate(trackGuestOrderSchema), OrderController.trackGuestOrder);
+
+// ── CUSTOMER ─────────────────────────────────────────────────────────────────
 router.post("/", authenticate, authorize("CUSTOMER"), validate(placeOrderSchema), OrderController.placeOrder);
 router.get("/my", authenticate, authorize("CUSTOMER"), OrderController.getMyOrders);
-router.get("/:id", authenticate, OrderController.getOrderById);
+// Use authenticateOrGuest to support both authenticated users and guests
+router.get("/:id", authenticateOrGuest, OrderController.getOrderById);
 router.patch("/:id/cancel", authenticate, authorize("CUSTOMER"), OrderController.cancelOrder);
 
-// VENDOR
+// ── VENDOR ───────────────────────────────────────────────────────────────────
 router.get("/vendor/items", authenticate, authorize("VENDOR"), OrderController.getVendorOrders);
 router.patch("/vendor/items/:itemId/status", authenticate, authorize("VENDOR"), validate(updateOrderItemStatusSchema), OrderController.updateOrderItemStatus);
 
-// ADMIN
+// ── ADMIN ────────────────────────────────────────────────────────────────────
 router.get("/", authenticate, authorize("ADMIN"), OrderController.getAllOrders);
 router.patch(
   "/:id",

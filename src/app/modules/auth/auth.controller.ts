@@ -6,7 +6,8 @@ import ApiError from "../../../utils/apiErrors";
 import * as AuthService from "./auth.service";
 
 export const signup = catchAsync(async (req: Request, res: Response) => {
-  const user = await AuthService.signup(req.body);
+  const guestId = req.user?.guestId || req.cookies?.guestId;
+  const user = await AuthService.signup({ ...req.body, guestId });
   sendResponse(res, {
     statusCode: 201,
     success: true,
@@ -47,7 +48,8 @@ export const resendEmailVerification = catchAsync(
 // auth.controller.ts
 export const signin = catchAsync(async (req: Request, res: Response) => {
   const { email, password } = req.body;
-  const result = await AuthService.signin(email, password, res);
+  const guestId = req.user?.guestId || req.cookies?.guestId;
+  const result = await AuthService.signin(email, password, res, guestId);
   sendResponse(res, {
     statusCode: 200,
     success: true,
