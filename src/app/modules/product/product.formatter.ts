@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 
-type ProductWithRelations = Prisma.ProductGetPayload<{
+export type ProductWithRelations = Prisma.ProductGetPayload<{
   include: {
     images: true;
     variants: true;
@@ -44,7 +44,10 @@ type ProductDetailDTO = {
   slug: string;
 
   description: string | null;
-  details: string | null;
+  overview: Record<string, unknown> | null;
+  details: Record<string, unknown> | null;
+  highlights: Record<string, unknown> | null;
+  additionalInfo: Record<string, unknown> | null;
 
   price: Prisma.Decimal;
   originalPrice: Prisma.Decimal | null;
@@ -112,6 +115,7 @@ export const PRODUCT_LIST_INCLUDE = {
 type ProductListItemRelations = Prisma.ProductGetPayload<{
   select: {
     id: true; name: true; slug: true; description: true;
+    overview: true; details: true; highlights: true; additionalInfo: true;
     price: true; originalPrice: true; stock: true;
     storeId: true; categoryId: true; isActive: true;
     rating: true; reviewCount: true; featured: true; bestseller: true;
@@ -130,7 +134,10 @@ export const formatProductResponse = (product: ProductWithRelations) => ({
   slug: product.slug ?? "",
 
   description: product.description,
+  overview: product.overview,
   details: product.details,
+  highlights: product.highlights,
+  additionalInfo: product.additionalInfo,
   price: product.price,
   stock: product.stock,
   isActive: product.isActive,
@@ -177,7 +184,10 @@ export const formatProductListItemResponse = (product: ProductListItemRelations)
   name: product.name,
   slug: product.slug ?? "",
   description: product.description,
+  overview: product.overview ?? null,
   details: product.details ?? null,
+  highlights: product.highlights ?? null,
+  additionalInfo: product.additionalInfo ?? null,
   price: product.price,
   originalPrice: product.originalPrice ?? null,
   stock: product.stock,
@@ -242,7 +252,10 @@ export const formatProductDetailResponse = (product: ProductDetailWithRelations)
   name: product.name,
   slug: product.slug ?? "",
   description: product.description,
+  overview: product.overview,
   details: product.details,
+  highlights: product.highlights,
+  additionalInfo: product.additionalInfo,
   price: product.price,
   originalPrice: product.originalPrice,
   stock: product.stock,

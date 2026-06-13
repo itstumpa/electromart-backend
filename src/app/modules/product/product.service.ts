@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../../lib/prisma';
 import ApiError from '../../../utils/apiErrors';
 import { getOrSetCache, invalidateCache, invalidateCachePattern } from '../../../utils/cache';
@@ -12,6 +13,7 @@ import {
   formatProductListItemResponse,
   formatProductResponse,
   PRODUCT_LIST_INCLUDE,
+  type ProductWithRelations,
 } from './product.formatter';
 
 type ProductQuery = {
@@ -42,11 +44,14 @@ export const createProduct = async (
   data: {
     name: string;
     description?: string;
-    details?: string;
+    overview?: Record<string, unknown> | null;
+    details?: Record<string, unknown> | null;
+    highlights?: Record<string, unknown> | null;
+    additionalInfo?: Record<string, unknown> | null;
     price: number;
     stock: number;
     categoryId: string;
-    images?: { url: string }[];
+    images?: { url: string; publicId?: string | null }[];
     specifications?: { key: string; value: string }[];
     variants?: { name: string; value: string; price?: number; stock: number }[];
   }
@@ -62,13 +67,31 @@ export const createProduct = async (
   const slug = await generateUniqueSlug(data.name, prisma.product);
 
   const { images, variants, specifications, ...productData } = data;
+  const { overview: _ov, details: _det, highlights: _hl, additionalInfo: _ai, ...scalarData } = productData;
+
+  // Destructure JSON fields out so they're not in scalarData
+  const jsonFields = {
+    ...(data.overview !== undefined && data.overview !== null ? { overview: data.overview as Prisma.InputJsonValue } : {}),
+    ...(data.details !== undefined && data.details !== null ? { details: data.details as Prisma.InputJsonValue } : {}),
+    ...(data.highlights !== undefined && data.highlights !== null ? { highlights: data.highlights as Prisma.InputJsonValue } : {}),
+    ...(data.additionalInfo !== undefined && data.additionalInfo !== null ? { additionalInfo: data.additionalInfo as Prisma.InputJsonValue } : {}),
+  };
+
+  // First image becomes primary automatically; assign sequential order
+  const imageData = images?.map((img, idx) => ({
+    url: img.url,
+    publicId: img.publicId ?? null,
+    isPrimary: idx === 0, // first image is primary
+    order: idx,
+  }));
 
   const product = await prisma.product.create({
     data: {
-      ...productData,
+      ...scalarData,
+      ...jsonFields,
       slug,
       storeId: store.id,
-      images: images ? { create: images } : undefined,
+      images: imageData ? { create: imageData } : undefined,
       variants: variants ? { create: variants } : undefined,
       specifications: specifications ? { create: specifications } : undefined,
     },
@@ -78,7 +101,7 @@ export const createProduct = async (
   // invalidate product cache
   await invalidateCachePattern('products:*');
 
-  return formatProductResponse(product);
+  return formatProductResponse(product as unknown as ProductWithRelations);
 };
 
 // ─────────────────────────────────────────────
@@ -122,7 +145,10 @@ export const getAllProducts = async (query: ProductQuery, options: ProductOption
           name: true,
           slug: true,
           description: true,
+          overview: true,
           details: true,
+          highlights: true,
+          additionalInfo: true,
           price: true,
           originalPrice: true,
           stock: true,
@@ -342,6 +368,7 @@ export const updateProduct = async (productId: string, ownerId: string, data: Re
 
   const removeImageIds = (data.removeImageIds as string[]) || [];
   const newImages = (data.newImages as { url: string; publicId?: string | null }[]) || [];
+  const primaryImageId = data.primaryImageId as string | undefined;
   const specifications = data.specifications as
     | {
         key: string;
@@ -350,18 +377,54 @@ export const updateProduct = async (productId: string, ownerId: string, data: Re
     | undefined;
 
   // Remove helper fields so they are not spread into Prisma update data
-  const { removeImageIds: _removeImageIds, newImages: _newImages, specifications: _specifications, ...productData } = data;
+  const { removeImageIds: _removeImageIds, newImages: _newImages, specifications: _specifications, imageUrl: _imageUrl, primaryImageId: _primaryImageId, ...productData } = data;
 
   // 1. Delete selected images from Cloudinary
   if (removeImageIds.length) {
-    await Promise.all(removeImageIds.map((publicId) => cloudinary.uploader.destroy(publicId)));
+    const imagesToDelete = product.images.filter((img) => removeImageIds.includes(img.id));
+    const cloudinaryResults = await Promise.allSettled(
+      imagesToDelete.map((img) =>
+        img.publicId ? cloudinary.uploader.destroy(img.publicId) : Promise.resolve()
+      )
+    );
+    cloudinaryResults.forEach((result, idx) => {
+      if (result.status === 'rejected') {
+        console.error(`[Cloudinary] Failed to delete image ${imagesToDelete[idx]?.publicId}:`, result.reason);
+      }
+    });
   }
 
   // 2. Keep images not removed
-  const remainingImages = product.images.filter((img) => !removeImageIds.includes(img.publicId ?? ''));
+  const remainingImages = product.images.filter((img) => !removeImageIds.includes(img.id));
+  const hasExistingPrimary = remainingImages.some((img) => img.isPrimary);
 
-  // 3. Merge existing + new images
-  const finalImages = [...remainingImages, ...newImages];
+  // 3. Build new image entries with proper ordering and primary assignment
+  const nextOrder = remainingImages.length;
+  const newImageEntries = newImages.map((img, idx) => ({
+    url: img.url,
+    publicId: img.publicId ?? null,
+    isPrimary: !hasExistingPrimary && idx === 0 && remainingImages.length === 0,
+    order: nextOrder + idx,
+  }));
+
+  // Determine which images remain (keeping their existing isPrimary status)
+  const keepImageEntries = remainingImages.map((img) => ({
+    id: img.id,
+    url: img.url,
+    publicId: img.publicId,
+    isPrimary: primaryImageId ? img.id === primaryImageId : img.isPrimary,
+    order: img.order,
+  }));
+
+  // If primary was deleted and no new primary set, auto-assign first available
+  const finalHasPrimary = keepImageEntries.some((img) => img.isPrimary) || newImageEntries.some((img) => img.isPrimary);
+  if (!finalHasPrimary && (keepImageEntries.length + newImageEntries.length) > 0) {
+    if (keepImageEntries.length > 0) {
+      keepImageEntries[0].isPrimary = true;
+    } else if (newImageEntries.length > 0) {
+      newImageEntries[0].isPrimary = true;
+    }
+  }
 
   // 4. Update product
   const updated = await prisma.product.update({
@@ -371,10 +434,15 @@ export const updateProduct = async (productId: string, ownerId: string, data: Re
 
       images: {
         deleteMany: {},
-        create: finalImages.map((img) => ({
-          url: img.url,
-          publicId: img.publicId ?? null,
-        })),
+        create: [
+          ...keepImageEntries.map((img) => ({
+            url: img.url,
+            publicId: img.publicId ?? null,
+            isPrimary: img.isPrimary,
+            order: img.order,
+          })),
+          ...newImageEntries,
+        ],
       },
 
       specifications:
@@ -390,7 +458,7 @@ export const updateProduct = async (productId: string, ownerId: string, data: Re
     },
 
     include: {
-      images: true,
+      images: { orderBy: { order: 'asc' } },
       variants: true,
       specifications: true,
       category: true,
@@ -403,20 +471,24 @@ export const updateProduct = async (productId: string, ownerId: string, data: Re
     await notifyStockAlert(productId);
   }
 
-  // 6. Clear cache
+  // 6. Clear cache — invalidate ALL product-related caches
   await invalidateCache(CacheKeys.SINGLE_PRODUCT(productId));
   await invalidateCachePattern('products:*');
+  await invalidateCache(CacheKeys.PRODUCT_SLUG(product.slug));
+  await invalidateCache(CacheKeys.FEATURED_PRODUCTS);
+  await invalidateCache(CacheKeys.BESTSELLERS);
+  await invalidateCache(CacheKeys.NEW_ARRIVALS);
 
   return formatProductResponse(updated);
 };
 
 // ─────────────────────────────────────────────
-// DELETE PRODUCT (invalidate cache)
+// DELETE PRODUCT — transactional cleanup
 // ─────────────────────────────────────────────
 export const deleteProduct = async (productId: string, ownerId: string, isSuperAdmin: boolean) => {
   const product = await prisma.product.findUnique({
     where: { id: productId },
-    include: { store: true },
+    include: { store: true, images: true },
   });
 
   if (!product) throw new ApiError(404, 'Product not found');
@@ -425,8 +497,26 @@ export const deleteProduct = async (productId: string, ownerId: string, isSuperA
     throw new ApiError(403, 'You can only delete your own products');
   }
 
+  // 1. Delete all images from Cloudinary first
+  const publicIds = product.images.filter((img) => img.publicId).map((img) => img.publicId!);
+
+  if (publicIds.length > 0) {
+    const cloudinaryResults = await Promise.allSettled(
+      publicIds.map((publicId) => cloudinary.uploader.destroy(publicId))
+    );
+
+    // Log any Cloudinary failures but continue with DB deletion
+    cloudinaryResults.forEach((result, idx) => {
+      if (result.status === 'rejected') {
+        console.error(`[Cloudinary] Failed to delete image ${publicIds[idx]}:`, result.reason);
+      }
+    });
+  }
+
+  // 2. Delete product from DB (cascades to ProductImage, CartItem, etc.)
   await prisma.product.delete({ where: { id: productId } });
 
+  // 3. Clear cache
   await invalidateCache(CacheKeys.SINGLE_PRODUCT(productId));
   await invalidateCachePattern('products:*');
 
@@ -442,8 +532,87 @@ export const getMyProducts = async (ownerId: string) => {
 
   return prisma.product.findMany({
     where: { storeId: store.id },
-    include: { images: true, variants: true, category: true, specifications: true },
+    include: { images: { orderBy: { order: 'asc' } }, variants: true, category: true, specifications: true },
     orderBy: { createdAt: 'desc' },
+  });
+};
+
+// ─────────────────────────────────────────────
+// SET PRIMARY IMAGE
+// ─────────────────────────────────────────────
+export const setPrimaryImage = async (imageId: string, productId: string, ownerId: string) => {
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    include: { store: true, images: true },
+  });
+  if (!product) throw new ApiError(404, 'Product not found');
+  if (product.store.ownerId !== ownerId) throw new ApiError(403, 'You can only update your own products');
+
+  const image = product.images.find((img) => img.id === imageId);
+  if (!image) throw new ApiError(404, 'Image not found on this product');
+
+  // Use a transaction to ensure only one primary image
+  await prisma.$transaction([
+    prisma.productImage.updateMany({
+      where: { productId, isPrimary: true },
+      data: { isPrimary: false },
+    }),
+    prisma.productImage.update({
+      where: { id: imageId },
+      data: { isPrimary: true },
+    }),
+  ]);
+
+  // Clear caches
+  await invalidateCache(CacheKeys.SINGLE_PRODUCT(productId));
+  await invalidateCachePattern('products:*');
+
+  return prisma.productImage.findMany({
+    where: { productId },
+    orderBy: { order: 'asc' },
+  });
+};
+
+// ─────────────────────────────────────────────
+// REORDER IMAGES
+// ─────────────────────────────────────────────
+export const reorderImages = async (
+  productId: string,
+  ownerId: string,
+  imageIds: string[]
+) => {
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    include: { store: true },
+  });
+  if (!product) throw new ApiError(404, 'Product not found');
+  if (product.store.ownerId !== ownerId) throw new ApiError(403, 'You can only update your own products');
+
+  // Validate all image IDs belong to this product
+  const existingImages = await prisma.productImage.findMany({
+    where: { productId },
+    select: { id: true },
+  });
+  const existingIds = new Set(existingImages.map((img) => img.id));
+  for (const id of imageIds) {
+    if (!existingIds.has(id)) throw new ApiError(400, `Image ${id} does not belong to this product`);
+  }
+
+  // Update order in a transaction
+  await prisma.$transaction(
+    imageIds.map((id, idx) =>
+      prisma.productImage.update({
+        where: { id },
+        data: { order: idx },
+      })
+    )
+  );
+
+  await invalidateCache(CacheKeys.SINGLE_PRODUCT(productId));
+
+  return prisma.productImage.findMany({
+    where: { productId },
+    orderBy: { order: 'asc' },
   });
 };
 

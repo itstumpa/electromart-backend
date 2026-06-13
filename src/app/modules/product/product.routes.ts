@@ -59,6 +59,15 @@ router.get(
   ProductController.getAllProductsAdmin  // new controller
 );
 
+// VENDOR — set primary image
+router.patch('/:id/images/primary', authenticate, authorize('VENDOR'), ProductImageController.setPrimaryImage);
+
+// VENDOR — reorder images
+router.patch('/:id/images/reorder', authenticate, authorize('VENDOR'), ProductImageController.reorderImages);
+
+// VENDOR — get product images
+router.get('/:id/images', authenticate, authorize('VENDOR'), ProductImageController.getProductImages);
+
 // VENDOR — delete a product image
 router.delete('/:id/images/:imageId', authenticate, authorize('VENDOR'), ProductImageController.deleteProductImage);
 

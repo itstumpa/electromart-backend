@@ -80,11 +80,24 @@ export const createProduct = catchAsync(async (req: Request, res: Response) => {
   const variants = typeof req.body.variants === 'string' ? JSON.parse(req.body.variants) : req.body.variants;
   const specifications = typeof req.body.specifications === 'string' ? JSON.parse(req.body.specifications) : req.body.specifications;
 
+  // Parse rich-text JSON fields (they arrive as strings via multipart/form-data)
+  const parseJsonField = (field: unknown) =>
+    typeof field === 'string' ? JSON.parse(field) : field;
+
+  const overview = parseJsonField(req.body.overview);
+  const details = parseJsonField(req.body.details);
+  const highlights = parseJsonField(req.body.highlights);
+  const additionalInfo = parseJsonField(req.body.additionalInfo);
+
   // Strip imageUrl from body data — it's not a Prisma field, and the image is already in the `images` array
   const { imageUrl: _, ...bodyWithoutImageUrl } = req.body;
 
   const product = await ProductService.createProduct(req.user!.id, {
     ...bodyWithoutImageUrl,
+    overview,
+    details,
+    highlights,
+    additionalInfo,
     slug,
     images,
     variants,
@@ -150,9 +163,10 @@ export const getProductById = catchAsync(async (req: Request, res: Response) => 
 export const updateProduct = catchAsync(async (req: Request, res: Response) => {
   const files = (req.files as Express.Multer.File[]) || [];
   const body = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
+  const imageUrl = body.imageUrl as string | undefined;
   const removeImageIds = typeof body.removeImageIds === 'string' ? JSON.parse(body.removeImageIds) : body.removeImageIds || [];
 
-  let newImages: { url: string; publicId: string }[] = [];
+  let newImages: { url: string; publicId?: string | null }[] = [];
   if (files.length) {
     newImages = await Promise.all(
       files.map(async (file) => {
@@ -160,15 +174,20 @@ export const updateProduct = catchAsync(async (req: Request, res: Response) => {
         return { url: result.secure_url, publicId: result.public_id };
       })
     );
+  } else if (imageUrl) {
+    newImages = [{ url: imageUrl }];
   }
 
- const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(req.user!.role as string);
-const product = await ProductService.updateProduct(
-  req.params.id as string,
-  req.user!.id,
-  { ...body, removeImageIds, newImages },
-  isAdmin,
-);
+  // Strip imageUrl from body before passing to service — it's not a Prisma field
+  const { imageUrl: _, ...bodyWithoutImageUrl } = body;
+
+  const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(req.user!.role as string);
+  const product = await ProductService.updateProduct(
+    req.params.id as string,
+    req.user!.id,
+    { ...bodyWithoutImageUrl, removeImageIds, newImages },
+    isAdmin,
+  );
 
   sendResponse(res, { statusCode: 200, success: true, message: 'Product updated successfully', data: product });
 });
@@ -237,7 +256,7 @@ export const uploadProductImages = catchAsync(async (req: Request, res: Response
 export const deleteProductImage = catchAsync(async (req: Request, res: Response) => {
   const image = await prisma.productImage.findUnique({
     where: { id: req.params.imageId as string },
-    include: { product: { include: { store: true } } },
+    include: { product: { include: { store: true, images: true } } },
   });
 
   if (!image) throw new ApiError(404, 'Image not found');
@@ -251,7 +270,79 @@ export const deleteProductImage = catchAsync(async (req: Request, res: Response)
   }
   await prisma.productImage.delete({ where: { id: image.id } });
 
+  // If the deleted image was primary, auto-assign another available image as primary
+  if (image.isPrimary) {
+    const remainingImages = image.product.images.filter((img) => img.id !== image.id);
+    if (remainingImages.length > 0) {
+      await prisma.productImage.update({
+        where: { id: remainingImages[0].id },
+        data: { isPrimary: true },
+      });
+    }
+  }
+
   sendResponse(res, { statusCode: 200, success: true, message: 'Image deleted', data: null });
+});
+
+// ─────────────────────────────────────────────
+// SET PRIMARY IMAGE
+// ─────────────────────────────────────────────
+export const setPrimaryImage = catchAsync(async (req: Request, res: Response) => {
+  const { imageId } = req.body;
+  if (!imageId) throw new ApiError(400, 'imageId is required');
+
+  const images = await ProductService.setPrimaryImage(imageId, req.params.id, req.user!.id);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Primary image updated',
+    data: images,
+  });
+});
+
+// ─────────────────────────────────────────────
+// REORDER IMAGES
+// ─────────────────────────────────────────────
+export const reorderImages = catchAsync(async (req: Request, res: Response) => {
+  const { imageIds } = req.body;
+  if (!Array.isArray(imageIds)) throw new ApiError(400, 'imageIds array is required');
+
+  const images = await ProductService.reorderImages(req.params.id, req.user!.id, imageIds);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Images reordered',
+    data: images,
+  });
+});
+
+// ─────────────────────────────────────────────
+// GET PRODUCT IMAGES
+// ─────────────────────────────────────────────
+export const getProductImages = catchAsync(async (req: Request, res: Response) => {
+  // Verify ownership
+  const product = await prisma.product.findUnique({
+    where: { id: req.params.id as string },
+    include: { store: true },
+  });
+  if (!product) throw new ApiError(404, 'Product not found');
+  if (product.store.ownerId !== req.user!.id) {
+    throw new ApiError(403, 'You can only view images of your own products');
+  }
+
+  const images = await prisma.productImage.findMany({
+    where: { productId: req.params.id },
+    orderBy: { order: 'asc' },
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Product images fetched',
+    data: images,
+  });
 });
 
 export const getRecentlyViewedProducts = catchAsync(async (req: Request, res: Response) => {
