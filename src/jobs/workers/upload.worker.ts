@@ -4,9 +4,7 @@ import { UploadJobData } from "../queues/upload.queue";
 import { uploadToCloudinary } from "../../utils/uploadToCloudinary";
 import { prisma } from "../../lib/prisma";
 import logger from "../../utils/logger";
-import { getRedis } from "../../app/config/redis";
-
-const redis = getRedis();
+import { getBullConnection } from "../../app/config/redis";
 
 const processUploadJob = async (job: Job<UploadJobData>) => {
   const { fileBuffer, folder, productId, ownerId } = job.data;
@@ -32,7 +30,7 @@ const processUploadJob = async (job: Job<UploadJobData>) => {
 
 export const startUploadWorker = () => {
   const worker = new Worker<UploadJobData>("upload", processUploadJob, {
-    connection: redis,
+    connection: getBullConnection(),
     concurrency: 3, // max 3 concurrent uploads
   });
 

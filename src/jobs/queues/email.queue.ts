@@ -1,11 +1,9 @@
 // src/jobs/queues/email.queue.ts
 import { Queue } from "bullmq";
-import { getRedis } from "../../app/config/redis";
-
-const redis = getRedis();
+import { getBullConnection } from "../../app/config/redis";
 
 export const emailQueue = new Queue("email", {
-  connection: redis,
+  connection: getBullConnection(),
   defaultJobOptions: {
     attempts: 3,
     backoff: { type: "exponential", delay: 2000 },

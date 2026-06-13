@@ -1,11 +1,9 @@
 // src/jobs/queues/upload.queue.ts
 import { Queue } from "bullmq";
-import { getRedis } from "../../app/config/redis";
-
-const redis = getRedis();
+import { getBullConnection } from "../../app/config/redis";
 
 export const uploadQueue = new Queue("upload", {
-  connection: redis,
+  connection: getBullConnection(),
   defaultJobOptions: {
     attempts: 3,
     backoff: { type: "exponential", delay: 3000 },

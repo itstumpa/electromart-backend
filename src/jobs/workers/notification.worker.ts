@@ -5,9 +5,7 @@ import { prisma } from "../../lib/prisma";
 import { sendNotificationToUser } from "../../socket/socket";
 import { sendPushToUser } from "../../utils/sendPushNotification";
 import logger from "../../utils/logger";
-import { getRedis } from "../../app/config/redis";
-
-const redis = getRedis();
+import { getBullConnection } from "../../app/config/redis";
 
 const processNotificationJob = async (job: Job<NotificationJobData>) => {
   const { userId, title, message, type, sendPush, sendSocket } = job.data;
@@ -32,7 +30,7 @@ export const startNotificationWorker = () => {
   const worker = new Worker<NotificationJobData>(
     "notification",
     processNotificationJob,
-    { connection: redis, concurrency: 10 }
+    { connection: getBullConnection(), concurrency: 10 }
   );
 
   worker.on("failed", (job, err) =>

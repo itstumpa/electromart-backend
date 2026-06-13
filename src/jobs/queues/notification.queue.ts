@@ -1,11 +1,9 @@
 // src/jobs/queues/notification.queue.ts
 import { Queue } from "bullmq";
-import { getRedis } from "../../app/config/redis";
-
-const redis = getRedis();;
+import { getBullConnection } from "../../app/config/redis";
 
 export const notificationQueue = new Queue("notification", {
-  connection: redis,
+  connection: getBullConnection(),
   defaultJobOptions: {
     attempts: 2,
     backoff: { type: "fixed", delay: 1000 },

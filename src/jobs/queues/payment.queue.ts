@@ -1,11 +1,9 @@
 // src/jobs/queues/payment.queue.ts
 import { Queue } from "bullmq";
-import { getRedis } from "../../app/config/redis";
-
-const redis = getRedis();
+import { getBullConnection } from "../../app/config/redis";
 
 export const paymentQueue = new Queue("payment", {
-  connection: redis,
+  connection: getBullConnection(),
   defaultJobOptions: {
     attempts: 5,
     backoff: { type: "exponential", delay: 5000 },

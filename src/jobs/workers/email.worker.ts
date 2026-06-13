@@ -10,9 +10,7 @@ import {
   returnRequestedEmail,
 } from "../../utils/emailTemplates";
 
-import { getRedis } from "../../app/config/redis";
-
-const redis = getRedis();
+import { getBullConnection } from "../../app/config/redis";
 
 const processEmailJob = async (job: Job<EmailJobData>) => {
   const data = job.data;
@@ -122,7 +120,7 @@ const processEmailJob = async (job: Job<EmailJobData>) => {
 
 export const startEmailWorker = () => {
   const worker = new Worker<EmailJobData>("email", processEmailJob, {
-    connection: redis,
+    connection: getBullConnection(),
     concurrency: 5,
   });
 

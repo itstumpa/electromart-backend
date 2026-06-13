@@ -5,9 +5,7 @@ import { prisma } from "../../lib/prisma";
 import { emailQueue } from "../queues/email.queue";
 import { notificationQueue } from "../queues/notification.queue";
 import logger from "../../utils/logger";
-import { getRedis } from "../../app/config/redis";
-
-const redis = getRedis();
+import { getBullConnection } from "../../app/config/redis";
 
 const processPaymentJob = async (job: Job<PaymentJobData>) => {
   const data = job.data;
@@ -67,7 +65,7 @@ export const startPaymentWorker = () => {
   const worker = new Worker<PaymentJobData>(
     "payment",
     processPaymentJob,
-    { connection: redis, concurrency: 2 }
+    { connection: getBullConnection(), concurrency: 2 }
   );
 
   worker.on("failed", (job, err) =>

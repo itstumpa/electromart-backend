@@ -34,6 +34,15 @@ export const getRedis = (): Redis => {
   return redis;
 };
 
+/**
+ * Returns a Redis connection compatible with BullMQ.
+ * BullMQ bundles its own ioredis internally, which can cause type mismatches
+ * when the top-level ioredis version differs. This helper casts the connection
+ * to `any` to avoid false-positive TS errors at build time.
+ * At runtime both versions are fully compatible (both ioredis v5.x).
+ */
+export const getBullConnection = () => getRedis() as any;
+
 export const closeRedis = async (): Promise<void> => {
   if (redis) {
     await redis.quit();
