@@ -11,3 +11,9 @@ export const answerQuestionSchema = z.object({
     answer: z.string().min(3, "Answer too short"),
   }),
 });
+
+export const moderateQuestionSchema = z.object({
+  body: z.object({
+    status: z.enum(["APPROVED", "REJECTED"]),
+  }),
+});

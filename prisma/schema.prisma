@@ -56,12 +56,16 @@ model ProductQuestion {
   answer     String?
   answeredAt DateTime?
   answeredBy String?
+  status     QStatus   @default(PENDING)
+  moderatedAt DateTime?
+  moderatedBy String?
   createdAt  DateTime  @default(now())
   customer   User      @relation("CustomerQuestions", fields: [customerId], references: [id])
   product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
   @@index([customerId])
+  @@index([status])
 }
 
 model StockAlert {
@@ -551,6 +555,12 @@ enum OrderItemStatus {
 }
 
 enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum QStatus {
   PENDING
   APPROVED
   REJECTED
