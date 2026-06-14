@@ -287,6 +287,9 @@ export const signin = async (
   if (!user.isEmailVerified)
     throw new ApiError(403, "Please verify your email before signing in");
 
+  if (user.isBanned)
+    throw new ApiError(403, "Your account has been suspended. Please contact support for assistance.");
+
   // Merge guest cart/wishlist before signing in
   if (guestId) {
     await mergeGuestData(guestId, user.id);
@@ -314,6 +317,9 @@ export const refreshToken = async (token: string, res: Response) => {
 
     const user = await prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user) throw new ApiError(401, "User not found");
+
+    if (user.isBanned)
+      throw new ApiError(403, "Your account has been suspended. Please contact support for assistance.");
 
     const accessToken = generateAccessToken(user.id, user.role);
     const newRefreshToken = generateRefreshToken(user.id);

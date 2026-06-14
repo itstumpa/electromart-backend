@@ -546,7 +546,7 @@ export const updateOrderItemStatus = async (
 
   const updated = await prisma.orderItem.update({
     where: { id: orderItemId },
-    data: { status },
+    data: status === 'DELIVERED' ? { status, deliveredAt: new Date() } : { status },
   });
     await invalidateCache(CacheKeys.VENDOR_ANALYTICS(store.id));
 

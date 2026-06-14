@@ -22,7 +22,7 @@ router.patch("/:questionId/moderate",  authenticate, authorize("VENDOR", "ADMIN"
 // Admin
 router.get("/admin/questions",         authenticate, authorize("ADMIN", "SUPER_ADMIN"),                      QAController.getAdminQuestions);
 
-// Customer / Admin
-router.delete("/:questionId",          authenticate, authorize("CUSTOMER", "ADMIN"),                         QAController.deleteQuestion);
+// Customer / Vendor / Admin
+router.delete("/:questionId",          authenticate, authorize("CUSTOMER", "VENDOR", "ADMIN"),               QAController.deleteQuestion);
 
 export const productQARoute = router;

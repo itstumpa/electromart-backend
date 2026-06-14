@@ -24,6 +24,15 @@ export const createReturnRequest = async (customerId: string, orderItemId: strin
     throw new ApiError(400, 'You can only return delivered items');
   }
 
+  // check 2-day delivery return window
+  if (orderItem.deliveredAt) {
+    const deliveredAt = new Date(orderItem.deliveredAt);
+    const deadline = new Date(deliveredAt.getTime() + 2 * 24 * 60 * 60 * 1000);
+    if (new Date() > deadline) {
+      throw new ApiError(400, 'Return window has expired. Returns must be requested within 2 days of delivery.');
+    }
+  }
+
   // check not already requested
   const existing = await prisma.returnRequest.findUnique({
     where: { orderItemId },

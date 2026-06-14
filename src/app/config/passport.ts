@@ -22,6 +22,7 @@ passport.use(
           where: { id: payload.sub },
         });
         if (!user) return done(null, false);
+        if (user.isBanned) return done(null, false);
         return done(null, user);
       } catch (err) {
         return done(err, false);

@@ -35,6 +35,6 @@ export const moderateQuestion = catchAsync(async (req: Request, res: Response) =
 });
 
 export const deleteQuestion = catchAsync(async (req: Request, res: Response) => {
-  const result = await QAService.deleteQuestion(req.params.questionId as string, req.user!.id, req.user!.role === "ADMIN");
+  const result = await QAService.deleteQuestion(req.params.questionId as string, req.user!.id, req.user!.role);
   sendResponse(res, { statusCode: 200, success: true, message: result.message, data: null });
 });

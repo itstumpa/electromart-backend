@@ -45,13 +45,18 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
           id: true,
           name: true,
           email: true,
-          role: true, // ✅ IMPORTANT FIX
+          role: true,
           isEmailVerified: true,
+          isBanned: true,
         },
       });
 
       if (!foundUser) {
         return next(new ApiError(401, 'Unauthorized'));
+      }
+
+      if (foundUser.isBanned) {
+        return next(new ApiError(403, 'Your account has been suspended. Please contact support for assistance.'));
       }
 
       // rotate tokens

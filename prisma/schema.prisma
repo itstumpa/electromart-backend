@@ -372,6 +372,7 @@ model OrderItem {
   variant       String?
   priceAtTime   Decimal
   status        OrderItemStatus @default(PENDING)
+  deliveredAt   DateTime?
   createdAt     DateTime        @default(now())
   order         Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product       Product         @relation(fields: [productId], references: [id])
@@ -558,6 +559,9 @@ enum ReturnStatus {
   PENDING
   APPROVED
   REJECTED
+  RETURNED
+  REFUNDED
+  COMPLETED
 }
 
 enum QStatus {

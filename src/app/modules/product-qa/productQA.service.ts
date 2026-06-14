@@ -153,11 +153,36 @@ export const moderateQuestion = async (questionId: string, moderatorId: string, 
   return updated;
 };
 
-// CUSTOMER/ADMIN — delete question
-export const deleteQuestion = async (questionId: string, requesterId: string, isAdmin: boolean) => {
-  const qa = await prisma.productQuestion.findUnique({ where: { id: questionId } });
+// VENDOR/ADMIN/CUSTOMER — delete question
+export const deleteQuestion = async (questionId: string, requesterId: string, role: string) => {
+  const qa = await prisma.productQuestion.findUnique({
+    where: { id: questionId },
+    include: { product: { include: { store: true } } },
+  });
   if (!qa) throw new ApiError(404, 'Question not found');
-  if (!isAdmin && qa.customerId !== requesterId) {
+
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+
+  // Admin can delete any question
+  if (isAdmin) {
+    await prisma.productQuestion.delete({ where: { id: questionId } });
+    return { message: 'Question deleted' };
+  }
+
+  // Vendor can delete approved questions for their own products
+  if (role === 'VENDOR') {
+    if (qa.product.store.ownerId !== requesterId) {
+      throw new ApiError(403, 'You can only delete questions for your own products');
+    }
+    if (qa.status !== 'APPROVED') {
+      throw new ApiError(400, 'You can only delete approved questions');
+    }
+    await prisma.productQuestion.delete({ where: { id: questionId } });
+    return { message: 'Question deleted' };
+  }
+
+  // Customer can delete their own questions
+  if (qa.customerId !== requesterId) {
     throw new ApiError(403, 'Access denied');
   }
   await prisma.productQuestion.delete({ where: { id: questionId } });
