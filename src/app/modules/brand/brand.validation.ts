@@ -6,6 +6,7 @@ export const createBrandSchema = z.object({
     slug: z.string().min(1).optional(),
     logo: z.string().optional(),
     description: z.string().optional(),
+    isFeatured: z.boolean().optional(),
   }),
 });
 
@@ -15,5 +16,6 @@ export const updateBrandSchema = z.object({
     slug: z.string().min(1).optional(),
     logo: z.string().optional(),
     description: z.string().optional(),
+    isFeatured: z.boolean().optional(),
   }),
 });

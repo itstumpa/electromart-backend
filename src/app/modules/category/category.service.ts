@@ -35,7 +35,7 @@ const formatCategoryForFrontend = (cat: CategoryWithCount) => ({
 
 
 // ADMIN — create
-export const createCategory = async (name: string, image: string) => {
+export const createCategory = async (name: string, image: string, isFeatured?: boolean) => {
   const slug = generateSlug(name);
 
   const existing = await prisma.category.findUnique({
@@ -47,10 +47,11 @@ export const createCategory = async (name: string, image: string) => {
   }
 
   const category = await prisma.category.create({
-    data: { name, slug, image, isFeatured: false },
+    data: { name, slug, image, isFeatured: isFeatured ?? false },
   });
 
   await invalidateCache(CacheKeys.ALL_CATEGORIES);
+  await invalidateCache(CacheKeys.FEATURED_CATEGORIES);
 
   return category;
 };
@@ -104,11 +105,33 @@ export const getCategoryById = async (id: string) => {
   return category;
 };
 
+// PUBLIC — get by slug
+export const getCategoryBySlug = async (slug: string) => {
+  const category = await prisma.category.findUnique({
+    where: { slug },
+    include: {
+      _count: {
+        select: { products: true },
+      },
+    },
+  });
+
+  if (!category) {
+    throw new ApiError(404, "Category not found");
+  }
+
+  return {
+    ...formatCategoryForFrontend(category),
+    description: null as string | null,
+  };
+};
+
 // ADMIN — update
 export const updateCategory = async (
   id: string,
   name: string,
-  image?: string
+  image?: string,
+  isFeatured?: boolean
 ) => {
   const category = await prisma.category.findUnique({
     where: { id },
@@ -137,10 +160,12 @@ export const updateCategory = async (
       name,
       slug,
       ...(image && { image }),
+      ...(isFeatured !== undefined && { isFeatured }),
     },
   });
 
   await invalidateCache(CacheKeys.ALL_CATEGORIES);
+  await invalidateCache(CacheKeys.FEATURED_CATEGORIES);
 
   return updatedCategory;
 };
@@ -192,6 +217,7 @@ export const deleteCategory = async (id: string) => {
   });
 
   await invalidateCache(CacheKeys.ALL_CATEGORIES);
+  await invalidateCache(CacheKeys.FEATURED_CATEGORIES);
 
   return {
     message: "Category deleted successfully",

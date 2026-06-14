@@ -27,8 +27,8 @@ export const getOrderTimeline = async (orderId: string, requesterId: string, rol
 
   if (!order) throw new ApiError(404, 'Order not found');
 
-  // Allow: ADMIN, the order's customer, or a VENDOR who owns items in the order
-  const isAdmin = role === 'ADMIN';
+  // Allow: ADMIN / SUPER_ADMIN, the order's customer, or a VENDOR who owns items in the order
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const isCustomer = order.userId === requesterId;
   const isVendorWithItems = role === 'VENDOR' && order.items.some((item) => item.store?.ownerId === requesterId);
 

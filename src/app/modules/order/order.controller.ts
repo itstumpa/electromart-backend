@@ -82,7 +82,8 @@ export const updateOrderItemStatus = catchAsync(async (req: Request, res: Respon
   const item = await OrderService.updateOrderItemStatus(
     req.params.itemId as string,
     req.user!.id,
-    req.body.status as OrderStatus
+    req.body.status as OrderStatus,
+    req.user!.role
   );
   sendResponse(res, { statusCode: 200, success: true, message: 'Order item status updated', data: item });
 });

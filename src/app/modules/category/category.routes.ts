@@ -11,6 +11,7 @@ const router = Router();
 // PUBLIC
 router.get("/", CategoryController.getAllCategories);
 router.get("/featured", CategoryController.getFeaturedCategories);
+router.get("/slug/:slug", CategoryController.getCategoryBySlug);
 router.get("/:id", CategoryController.getCategoryById);
 
 // ADMIN only

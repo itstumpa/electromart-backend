@@ -8,6 +8,7 @@ import { createBrandSchema, updateBrandSchema } from './brand.validation';
 const router = Router();
 
 router.get('/', BrandController.getAllBrands);
+router.get('/featured', BrandController.getFeaturedBrands);
 router.get('/:id', BrandController.getBrandById);
 
 router.post('/', authenticate, authorize('ADMIN'), validate(createBrandSchema), BrandController.createBrand);

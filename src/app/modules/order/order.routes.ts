@@ -27,9 +27,9 @@ router.get("/my", authenticate, authorize("CUSTOMER"), OrderController.getMyOrde
 router.get("/:id", authenticateOrGuest, OrderController.getOrderById);
 router.patch("/:id/cancel", authenticate, authorize("CUSTOMER"), OrderController.cancelOrder);
 
-// ── VENDOR ───────────────────────────────────────────────────────────────────
+// ── VENDOR / ADMIN / SUPER_ADMIN ────────────────────────────────────────────
 router.get("/vendor/items", authenticate, authorize("VENDOR"), OrderController.getVendorOrders);
-router.patch("/vendor/items/:itemId/status", authenticate, authorize("VENDOR"), validate(updateOrderItemStatusSchema), OrderController.updateOrderItemStatus);
+router.patch("/vendor/items/:itemId/status", authenticate, authorize("VENDOR", "ADMIN", "SUPER_ADMIN"), validate(updateOrderItemStatusSchema), OrderController.updateOrderItemStatus);
 
 // ── ADMIN ────────────────────────────────────────────────────────────────────
 router.get("/", authenticate, authorize("ADMIN"), OrderController.getAllOrders);

@@ -528,16 +528,23 @@ export const getVendorOrders = async (ownerId: string) => {
 export const updateOrderItemStatus = async (
   orderItemId: string,
   ownerId: string,
-  status: OrderStatus
+  status: OrderStatus,
+  role?: string
 ) => {
-  const store = await prisma.store.findUnique({ where: { ownerId } });
-  if (!store) throw new ApiError(404, 'Store not found');
+  const isSuperAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN';
 
   const item = await prisma.orderItem.findUnique({ where: { id: orderItemId } });
   if (!item) throw new ApiError(404, 'Order item not found');
 
-  if (item.storeId !== store.id) {
-    throw new ApiError(403, "This order item doesn't belong to your store");
+  let storeIdForCache = item.storeId;
+
+  if (!isSuperAdmin) {
+    const store = await prisma.store.findUnique({ where: { ownerId } });
+    if (!store) throw new ApiError(404, 'Store not found');
+
+    if (item.storeId !== store.id) {
+      throw new ApiError(403, "This order item doesn't belong to your store");
+    }
   }
 
   if (item.status === 'CANCELLED') {
@@ -548,7 +555,7 @@ export const updateOrderItemStatus = async (
     where: { id: orderItemId },
     data: status === 'DELIVERED' ? { status, deliveredAt: new Date() } : { status },
   });
-    await invalidateCache(CacheKeys.VENDOR_ANALYTICS(store.id));
+    await invalidateCache(CacheKeys.VENDOR_ANALYTICS(storeIdForCache));
 
   const orderWithUser = await prisma.order.findUnique({
     where: { id: item.orderId },

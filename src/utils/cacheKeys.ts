@@ -14,6 +14,9 @@ export const CacheKeys = {
   BESTSELLERS: "bestsellers",
   NEW_ARRIVALS: "new_arrivals",
 
+  // brands
+  FEATURED_BRANDS: "brands:featured",
+
   // stores
   ALL_STORES: "stores:all",
   SINGLE_STORE: (id: string) => `stores:${id}`,

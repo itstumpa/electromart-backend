@@ -259,6 +259,7 @@ model Brand {
   slug        String    @unique
   logo        String? 
   description String?
+  isFeatured  Boolean   @default(false)
   products    Product[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

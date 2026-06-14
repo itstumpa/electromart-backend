@@ -5,7 +5,7 @@ import sendResponse from "../../../utils/sendResponse";
 import * as CategoryService from "./category.service";
 
 export const createCategory = catchAsync(async (req: Request, res: Response) => {
-  const { name, image: bodyImage } = req.body;
+  const { name, image: bodyImage, isFeatured } = req.body;
 
   const files = (req.files as Express.Multer.File[]) || [];
 
@@ -13,7 +13,8 @@ export const createCategory = catchAsync(async (req: Request, res: Response) => 
 
   const category = await CategoryService.createCategory(
     name,
-    image
+    image,
+    isFeatured
   );
 
   sendResponse(res, {
@@ -34,9 +35,14 @@ export const getCategoryById = catchAsync(async (req: Request, res: Response) =>
   sendResponse(res, { statusCode: 200, success: true, message: "Category fetched", data: category });
 });
 
+export const getCategoryBySlug = catchAsync(async (req: Request, res: Response) => {
+  const category = await CategoryService.getCategoryBySlug(req.params.slug as string);
+  sendResponse(res, { statusCode: 200, success: true, message: "Category fetched", data: category });
+});
+
 export const updateCategory = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, image: bodyImage } = req.body;
+  const { name, image: bodyImage, isFeatured } = req.body;
 
   const files = (req.files as Express.Multer.File[]) || [];
 
@@ -45,7 +51,8 @@ export const updateCategory = catchAsync(async (req: Request, res: Response) => 
   const result = await CategoryService.updateCategory(
     id as string,
     name,
-    image
+    image,
+    isFeatured
   );
 
   sendResponse(res, {

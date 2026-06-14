@@ -8,6 +8,11 @@ export const getAllBrands = catchAsync(async (_req: Request, res: Response) => {
   sendResponse(res, { statusCode: 200, success: true, message: 'Brands fetched', data: brands });
 });
 
+export const getFeaturedBrands = catchAsync(async (_req: Request, res: Response) => {
+  const brands = await BrandService.getFeaturedBrands();
+  sendResponse(res, { statusCode: 200, success: true, message: 'Featured brands fetched', data: brands });
+});
+
 export const getBrandById = catchAsync(async (req: Request, res: Response) => {
   const brand = await BrandService.getBrandById(req.params.id as string);
   sendResponse(res, { statusCode: 200, success: true, message: 'Brand fetched', data: brand });
