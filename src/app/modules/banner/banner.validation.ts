@@ -21,7 +21,7 @@ export const bannerTypeQuerySchema = z.object({
 
 const commonFields = {
   isActive: z.boolean().optional(),
-  order: z.number().int().optional(),
+  order: z.coerce.number().int().optional(),
   startsAt: dateOrNull,
   expiresAt: dateOrNull,
   imageUrl: z.string().optional().nullable(),
@@ -67,8 +67,8 @@ const commonFields = {
   // PRODUCT_FLOATING
   floatingName: z.string().optional().nullable(),
   floatingPrice: z.string().optional().nullable(),
-  floatingRating: z.number().optional().nullable(),
-  floatingReviews: z.number().int().optional().nullable(),
+  floatingRating: z.coerce.number().optional().nullable(),
+  floatingReviews: z.coerce.number().int().optional().nullable(),
 };
 
 export const createBannerSchema = z.object({

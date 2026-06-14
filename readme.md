@@ -15,6 +15,8 @@ npx prisma generate
 ```
 npm install -D ts-node
 npx tsx prisma/seed.ts
+npx ts-node prisma/banner-seed.ts
+npx tsx prisma/banner-seed.ts
 
 
 <!-- for task kill  -->
