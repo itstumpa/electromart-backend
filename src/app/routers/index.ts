@@ -21,6 +21,7 @@ import UserRoutes from '../modules/users/users.routes';
 import { vendorAnalyticsRoute } from '../modules/vendor-analytics/vendorAnalytics.routes';
 import { wishlistRoute } from '../modules/wishlist/wishlist.routes';
 import { payoutRoute } from '../modules/payout/payout.routes';
+import { bannerRoute, bannerAdminRoute } from '../modules/banner/banner.routes';
 import { brandRoute } from '../modules/brand/brand.routes';
 //import { authenticate, authorize } from "../middlewares/auth";
 
@@ -48,7 +49,9 @@ router.use('/qa', productQARoute);
 router.use('/stock-alerts', stockAlertRoute);
 router.use('/leaderboard', leaderboardRoute);
 router.use('/wishlist', wishlistRoute);
+router.use('/banners', bannerRoute);
 
+router.use('/admin/banners', bannerAdminRoute);
 router.use('/admin', adminRoute);
 router.use('/vendor-analytics', vendorAnalyticsRoute);
 router.use('/payouts', payoutRoute);

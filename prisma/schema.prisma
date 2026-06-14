@@ -505,6 +505,76 @@ model Review {
   @@index([rating])
 }
 
+enum BannerType {
+  HOME_HERO_MAIN      // 1 big hero cell in bento grid
+  HOME_GRID_CELL      // 6 small vendor cells in bento grid
+  HOME_PILL           // 6 offer pills strip
+  PRODUCT_HERO_SLIDE  // 3 slides in product page carousel
+  PRODUCT_FLOATING    // 2 floating product cards on product page
+}
+
+model Banner {
+  id        String     @id @default(cuid())
+  type      BannerType
+  isActive  Boolean    @default(true)
+  order     Int        @default(0)
+  startsAt  DateTime?
+  expiresAt DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Shared image field
+  imageUrl  String?
+  publicId  String?   // Cloudinary public ID
+
+  // HOME_HERO_MAIN fields
+  heroTitle        String?
+  heroLabel        String?
+  heroHref         String?
+  heroCtaText      String?
+  heroGradientFrom String?  // predefined Tailwind class
+  heroGradientVia  String?  // predefined Tailwind class
+  heroAccentColor  String?  // predefined Tailwind class
+  heroCtaBg        String?  // predefined Tailwind class
+
+  // HOME_GRID_CELL fields
+  gridLabel        String?
+  gridTitle        String?
+  gridHref         String?
+  gridOffer        String?
+  gridOfferIcon    String?  // icon name string e.g. "Zap"
+  gridGradientFrom String?  // predefined Tailwind class
+  gridGradientVia  String?  // predefined Tailwind class
+  gridBadgeBg      String?  // predefined Tailwind class
+
+  // HOME_PILL fields
+  pillLabel  String?
+  pillSub    String?
+  pillIcon   String?  // icon name string
+  pillBg     String?  // predefined Tailwind class
+  pillShadow String?  // predefined Tailwind class
+
+  // PRODUCT_HERO_SLIDE fields
+  slideBadge         String?
+  slideTitle         String?
+  slideHighlight     String?
+  slideSubtitle      String?
+  slidePrice         String?
+  slideOriginalPrice String?
+  slideDiscount      String?
+  slideBgGradient    String?  // predefined Tailwind class
+
+  // PRODUCT_FLOATING fields
+  floatingName   String?
+  floatingPrice  String?
+  floatingRating Float?
+  floatingReviews Int?
+
+  @@index([type, isActive])
+  @@index([type, order])
+}
+
+
 enum Role {
   SUPER_ADMIN
   CUSTOMER
