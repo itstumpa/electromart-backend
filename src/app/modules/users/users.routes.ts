@@ -13,11 +13,11 @@ router.get('/me/notification-prefs', authenticate, UserController.getNotificatio
 router.patch('/me/notification-prefs', authenticate, UserController.updateNotificationPrefs);
 router.patch('/me/avatar', authenticate, upload.single('avatar'), UserController.uploadAvatar);
 
-router.post("/", validate(createUserSchema), UserController.createUser);
+router.post("/", authenticate, authorize("ADMIN"), validate(createUserSchema), UserController.createUser);
 router.get("/", authenticate, authorize("ADMIN"), UserController.getAllUsers);
 router.get("/:id", authenticate, authorize("ADMIN"), UserController.getUserById);
 router.patch("/:id/ban", authenticate, authorize("ADMIN"), UserController.banUser);
-router.patch("/:id", authenticate, validate(updateUserSchema), UserController.updateUser);
+router.patch("/:id", authenticate, authorize("ADMIN"), validate(updateUserSchema), UserController.updateUser);
 router.delete("/:id", authenticate, authorize("ADMIN", "CUSTOMER"), UserController.deleteUser);
 
 export default router;

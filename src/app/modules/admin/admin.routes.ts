@@ -19,6 +19,7 @@
 
 import express from 'express';
 import { authenticate } from '../../middlewares/authenticate';
+import { authorize } from '../../middlewares/authorize';
 import { validate } from '../../middlewares/validate';
 import * as AdminController from './admin.controller';
 
@@ -30,10 +31,10 @@ import {
 } from './admin.validation';
 
 const router = express.Router();
-router.use(authenticate);
+router.use(authenticate, authorize('SUPER_ADMIN', 'ADMIN'));
 
 /**
- * Only SUPER_ADMIN should access these routes
+ * Only SUPER_ADMIN / ADMIN should access these routes
  */
 router.get('/overview', AdminController.getDashboardOverview);
 

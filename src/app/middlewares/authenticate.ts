@@ -37,7 +37,24 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
     }
 
     try {
-      const payload = jwt.verify(refreshToken, config.refreshSecret as string) as { sub: string };
+      const payload = jwt.verify(refreshToken, config.refreshSecret as string) as { sub: string; jti?: string };
+
+      // ── C-4: Refresh token replay protection ──
+      if (payload.jti) {
+        try {
+          const { getRedis } = await import('../../app/config/redis');
+          const redis = getRedis();
+          const blacklisted = await redis.get(`bl_rt:${payload.jti}`);
+          if (blacklisted) {
+            return next(new ApiError(401, 'Session expired. Please sign in again.'));
+          }
+          // Blacklist this token — it's being rotated
+          await redis.set(`bl_rt:${payload.jti}`, '1', 'EX', 7 * 24 * 60 * 60);
+        } catch {
+          // Redis unavailable — skip (graceful degradation)
+        }
+      }
+      // ────────────────────────────────────────────
 
       const foundUser = await prisma.user.findUnique({
         where: { id: payload.sub },

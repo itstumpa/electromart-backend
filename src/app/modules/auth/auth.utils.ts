@@ -1,4 +1,5 @@
 import jwt, { SignOptions } from "jsonwebtoken";
+import { v4 as uuidv4 } from "uuid";
 import config from "../../config";
 
 export const generateAccessToken = (userId: string, role: string): string =>
@@ -7,6 +8,6 @@ export const generateAccessToken = (userId: string, role: string): string =>
   });
 
 export const generateRefreshToken = (userId: string): string =>
-  jwt.sign({ sub: userId }, config.refreshSecret as string, {
+  jwt.sign({ sub: userId, jti: uuidv4() }, config.refreshSecret as string, {
     expiresIn: (config.refreshExpires || "7d") as SignOptions["expiresIn"],
   });

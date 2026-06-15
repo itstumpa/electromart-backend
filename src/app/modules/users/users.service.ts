@@ -88,9 +88,18 @@ export const updateUser = async (
   const user = await prisma.user.findUnique({ where: { id: targetId } });
   if (!user) throw new ApiError(404, "User not found");
 
+  // Field allowlisting — prevent privilege escalation via stray fields
+  const sanitizedData: Record<string, any> = {};
+  if (data.name !== undefined) sanitizedData.name = data.name;
+  if (data.email !== undefined) sanitizedData.email = data.email;
+  if (data.phone !== undefined) sanitizedData.phone = data.phone;
+  if (data.avatar !== undefined) sanitizedData.avatar = data.avatar;
+  if (data.website !== undefined) sanitizedData.website = data.website;
+  if (data.location !== undefined) sanitizedData.location = data.location;
+
   return prisma.user.update({
     where: { id: targetId },
-    data,
+    data: sanitizedData,
     select: {
       id: true,
       name: true,
