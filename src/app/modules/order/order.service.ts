@@ -551,6 +551,9 @@ export const getVendorOrders = async (ownerId: string) => {
           status: true,
           total: true,        // was: totalAmount — field is `total` in schema
           createdAt: true,
+          guestId: true,
+          guestName: true,
+          guestEmail: true,
           user: { select: { id: true, name: true, email: true } }, // was: customer
         },
       },
