@@ -364,6 +364,41 @@ export const getGuestOrders = async (guestEmail: string, options: IOptions) => {
   };
 };
 
+// PUBLIC — get order for confirmation (no auth required, for order confirmation page)
+// Security: order ID (cuid) acts as the access token. Only returns non-sensitive order data.
+export const getOrderForPublicConfirmation = async (orderId: string) => {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      items: {
+        include: {
+          product: { select: { id: true, name: true, images: { take: 1 } } },
+          store: { select: { id: true, name: true } },
+        },
+      },
+      shipping: true,
+      payment: true,
+      statusHistory: {
+        orderBy: { createdAt: 'desc' },
+      },
+    },
+  });
+
+  if (!order) throw new ApiError(404, 'Order not found');
+
+  // For authenticated user orders, include minimal user info
+  if (order.userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: order.userId },
+      select: { id: true, name: true, email: true },
+    });
+    return { ...order, user };
+  }
+
+  // Guest orders - return without user relation (sensitive)
+  return order;
+};
+
 // CUSTOMER / GUEST — get single order (own only)
 export const getOrderById = async (orderId: string, userId: string, guestId: string | undefined, isAdmin: boolean) => {
   const order = await prisma.order.findUnique({

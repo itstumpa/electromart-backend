@@ -18,6 +18,8 @@ const router = Router();
 
 // ── Guest order routes ───────────────────────────────────────────────────────
 router.post("/guest", optionalAuth, validate(placeGuestOrderSchema), OrderController.placeGuestOrder);
+// Public endpoint for order confirmation page (no auth required - order ID is the access key)
+router.get("/guest/confirmation/:orderId", OrderController.getGuestOrderConfirmation);
 router.get("/guest/track/:orderId", guestOrderTrackerLimiter, validate(trackGuestOrderSchema), OrderController.trackGuestOrder);
 
 // ── CUSTOMER ─────────────────────────────────────────────────────────────────

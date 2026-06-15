@@ -47,6 +47,13 @@ export const getOrderById = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, { statusCode: 200, success: true, message: 'Order fetched', data: order });
 });
 
+export const getGuestOrderConfirmation = catchAsync(async (req: Request, res: Response) => {
+  const order = await OrderService.getOrderForPublicConfirmation(
+    req.params.orderId as string,
+  );
+  sendResponse(res, { statusCode: 200, success: true, message: 'Order fetched', data: order });
+});
+
 export const trackGuestOrder = catchAsync(async (req: Request, res: Response) => {
   const order = await OrderService.trackGuestOrder(
     req.params.orderId as string,
