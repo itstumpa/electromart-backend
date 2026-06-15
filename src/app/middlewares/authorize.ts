@@ -25,10 +25,8 @@ export const authorize =
     // Super admin bypass (safe check)
     // ─────────────────────────────
 if (userRole === "SUPER_ADMIN") {
-  console.log('✅ SUPER_ADMIN bypass'); // add this
   return next();
 }
-console.log('❌ userRole:', userRole); // add this
 
     // ─────────────────────────────
     // Role check
