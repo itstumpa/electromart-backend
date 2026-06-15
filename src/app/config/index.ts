@@ -14,6 +14,9 @@ if (!process.env.JWT_ACCESS_SECRET) {
 if (!process.env.JWT_REFRESH_SECRET) {
   throw new Error("JWT_REFRESH_SECRET is missing in .env");
 }
+if (!process.env.STRIPE_WEBHOOK_SECRET) {
+  throw new Error("STRIPE_WEBHOOK_SECRET is missing in .env");
+}
 
 const config = {
   node_env: process.env.NODE_ENV || "development",

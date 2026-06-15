@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../../lib/prisma";
 import { PaymentStatus } from "@prisma/client";
 import ApiError from "../../../utils/apiErrors";
+import config from "../../config";
 import { sendEmail } from "../../../utils/sendEmail";
 import { createNotification } from "../notification/notification.service";
 import {
@@ -139,8 +140,8 @@ const initiatePaymentForOrder = async (
         quantity: item.quantity,
       })),
       metadata: { orderId: order.id },
-      success_url: `${process.env.STRIPE_SUCCESS_URL}?session_id={CHECKOUT_SESSION_ID}&orderId=${order.id}`,
-      cancel_url: `${process.env.STRIPE_CANCEL_URL}?orderId=${order.id}`,
+      success_url: `${config.frontend_url}/payment/result?status=success&orderId=${order.id}`,
+      cancel_url: `${config.frontend_url}/payment/result?status=cancel&orderId=${order.id}`,
     });
 
     await prisma.payment.upsert({

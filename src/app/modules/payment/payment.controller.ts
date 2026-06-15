@@ -64,6 +64,18 @@ export const stripeWebhook = catchAsync(async (req: Request, res: Response) => {
   res.status(200).json({ received: true });
 });
 
+// ── Stripe success/cancel redirect fallback ──────────────────────────────────
+// These handle cases where Stripe redirects to the backend (e.g. from old sessions)
+export const paymentSuccessRedirect = catchAsync(async (req: Request, res: Response) => {
+  const orderId = (req.query.orderId as string) || "";
+  res.redirect(`${process.env.FRONTEND_URL}/payment/result?status=success${orderId ? `&orderId=${orderId}` : ""}`);
+});
+
+export const paymentCancelRedirect = catchAsync(async (req: Request, res: Response) => {
+  const orderId = (req.query.orderId as string) || "";
+  res.redirect(`${process.env.FRONTEND_URL}/payment/result?status=cancel${orderId ? `&orderId=${orderId}` : ""}`);
+});
+
 // ADMIN — refund
 export const refundPayment = catchAsync(async (req: Request, res: Response) => {
   const result = await PaymentService.refundPayment(req.params.orderId as string, req.body.reason);

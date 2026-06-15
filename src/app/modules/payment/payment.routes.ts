@@ -53,4 +53,9 @@ router.post(
   PaymentController.stripeWebhook
 );
 
+// ── Stripe success/cancel redirect fallbacks ─────────────────────────────────
+// Stripe may redirect here if success_url/cancel_url points to backend
+router.get("/success", PaymentController.paymentSuccessRedirect);
+router.get("/cancel", PaymentController.paymentCancelRedirect);
+
 export const paymentRoute = router;

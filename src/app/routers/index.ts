@@ -42,6 +42,15 @@ router.use('/returns', returnRoute);
 router.use('/reviews', reviewRoute);
 router.use('/coupons', couponRoute);
 router.use('/payments', paymentRoute);
+// Catch-all for singular "payment" path — redirects to frontend
+router.use('/payment', (req, res) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const status = req.path.includes('success') ? 'success' : req.path.includes('cancel') ? 'cancel' : 'fail';
+  const orderId = (req.query.orderId as string) || '';
+  const params = new URLSearchParams({ status });
+  if (orderId) params.set('orderId', orderId);
+  res.redirect(301, `${frontendUrl}/payment/result?${params.toString()}`);
+});
 router.use('/addresses', addressRoute);
 router.use('/orderTracking', orderTrackingRoute);
 router.use('/tags', tagRoute);

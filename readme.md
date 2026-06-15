@@ -98,8 +98,21 @@ docker-compose down
 }
 
 ```
- "specifications": [
-    { "key": "RAM", "value": "16 GB" },
-    { "key": "Storage", "value": "512 GB SSD" },
-    { "key": "Display", "value": "13.6 inch Liquid Retina" }
-  ]
+
+```
+
+**Stripe docs → Testing → Test cards**
+
+Direct link: stripe.com/docs/testing#cards
+Common ones you'll use:
+
+| Card | Number |
+| --- | --- |
+| Success | `4242 4242 4242 4242` |
+| Declined | `4000 0000 0000 0002` |
+| Insufficient funds | `4000 0000 0000 9995` |
+| 3D Secure | `4000 0025 0000 3155` |
+
+
+Expiry/CVC: any future date + any 3 digits.
+```
