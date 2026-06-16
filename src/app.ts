@@ -11,7 +11,6 @@ import swaggerUi from 'swagger-ui-express';
 import config from './app/config';
 import './app/config/passport';
 import { swaggerSpec } from './app/config/swagger';
-import { csrfProtection, generateCsrfToken } from './app/middlewares/csrf';
 import globalErrorHandler from './app/middlewares/globalErrorHandler';
 import notFound from './app/middlewares/notFound';
 import { globalLimiter } from './app/middlewares/rateLimiter';
@@ -84,7 +83,7 @@ app.use(
     origin: allowedOrigins.length > 1 ? allowedOrigins : allowedOrigins[0],
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
     maxAge: 600,
   })
 );
@@ -110,13 +109,6 @@ app.use(passport.initialize());
 
 // ── Rate Limiting ──────────────────────────────────────────────────────
 app.use(globalLimiter);
-
-// ── CSRF Protection ────────────────────────────────────────────────────
-app.use('/api/v1', csrfProtection);
-app.get('/api/v1/auth/csrf-token', (req, res) => {
-  const token = generateCsrfToken(req, res);
-  res.json({ csrfToken: token });
-});
 
 // ── HTTP + Socket ──────────────────────────────────────────────────────
 const httpServer = http.createServer(app);

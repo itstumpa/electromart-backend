@@ -17,9 +17,6 @@ if (!process.env.JWT_REFRESH_SECRET) {
 if (!process.env.STRIPE_WEBHOOK_SECRET) {
   throw new Error("STRIPE_WEBHOOK_SECRET is missing in .env");
 }
-if (!process.env.CSRF_SECRET) {
-  throw new Error("CSRF_SECRET is missing in .env");
-}
 
 const config = {
   node_env: process.env.NODE_ENV || "development",
@@ -35,7 +32,6 @@ const config = {
   refreshSecret: process.env.JWT_REFRESH_SECRET!,
   accessExpires: process.env.JWT_ACCESS_EXPIRES || "15m",
   refreshExpires: process.env.JWT_REFRESH_EXPIRES || "7d",
-  csrfSecret: process.env.CSRF_SECRET!,
 
 
   api_key: process.env.CLOUDINARY_API_KEY,
