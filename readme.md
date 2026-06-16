@@ -1,7 +1,6 @@
 ```
 ## 🚀 Live Demo
-[Backend] (https://Electromart-backend-p77m.onrender.com)
-[Frontend](https://Electromart-frontend-jet.vercel.app)
+[Frontend](https://electromart-frontend-rust.vercel.app)
 
 ```
 
