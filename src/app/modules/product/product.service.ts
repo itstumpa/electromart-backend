@@ -356,7 +356,6 @@ export const getSearchSuggestions = async (q: string) => {
 // UPDATE PRODUCT (invalidate cache)
 // ─────────────────────────────────────────────
 export const updateProduct = async (productId: string, ownerId: string, data: Record<string, unknown>, isSuperAdmin: boolean) => {
-  console.log('isSuperAdmin:', isSuperAdmin);
   const product = await prisma.product.findUnique({
     where: { id: productId },
     include: {
