@@ -131,8 +131,14 @@ export const getMe = catchAsync(async (req: Request, res: Response) => {
 
 // auth.controller.ts
 export const logout = catchAsync(async (req: Request, res: Response) => {
-  res.clearCookie("accessToken", { path: "/" });
-  res.clearCookie("refreshToken", { path: "/" });
+  const isProduction = process.env.NODE_ENV === 'production';
+  const clearOpts = {
+    path: "/",
+    sameSite: (isProduction ? "none" : "lax") as "none" | "lax" | "strict",
+    secure: isProduction,
+  };
+  res.clearCookie("accessToken", clearOpts);
+  res.clearCookie("refreshToken", clearOpts);
   sendResponse(res, {
     statusCode: 200,
     success: true,

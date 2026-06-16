@@ -15,7 +15,7 @@ const {
   cookieName: CSRF_COOKIE_NAME,
   cookieOptions: {
     httpOnly: false,       // Must be readable by JS on the frontend
-    sameSite: 'strict',
+    sameSite: config.node_env === 'production' ? 'none' : 'lax',
     secure: config.node_env === 'production',
     path: '/',
   },
