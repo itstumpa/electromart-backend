@@ -4,14 +4,17 @@ import passport from "passport";
 import config from "../config";
 
 const isProduction = config.node_env === "production";
+const isCrossOrigin = isProduction ||
+  config.frontend_url.startsWith("https://") ||
+  config.backend_url.startsWith("https://");
 
 const GUEST_COOKIE_NAME = "guestId";
 const GUEST_MAX_AGE = 48 * 60 * 60 * 1000; // 48 hours
 
 const guestCookieOptions = {
   httpOnly: true,
-  secure: isProduction,
-  sameSite: (isProduction ? "none" : "lax") as "none" | "lax" | "strict",
+  secure: isCrossOrigin,
+  sameSite: (isCrossOrigin ? "none" : "lax") as "none" | "lax" | "strict",
   path: "/",
   maxAge: GUEST_MAX_AGE,
 };

@@ -4,6 +4,7 @@ import sendResponse from "../../../utils/sendResponse";
 // import AppError from "../../../utils/AppError"; // ✅ import added
 import ApiError from "../../../utils/apiErrors";
 import * as AuthService from "./auth.service";
+import config from "../../config";
 
 export const signup = catchAsync(async (req: Request, res: Response) => {
   const guestId = req.user?.guestId || req.cookies?.guestId;
@@ -131,11 +132,14 @@ export const getMe = catchAsync(async (req: Request, res: Response) => {
 
 // auth.controller.ts
 export const logout = catchAsync(async (req: Request, res: Response) => {
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = config.node_env === 'production';
+  const isCrossOrigin = isProduction ||
+    config.frontend_url.startsWith("https://") ||
+    config.backend_url.startsWith("https://");
   const clearOpts = {
     path: "/",
-    sameSite: (isProduction ? "none" : "lax") as "none" | "lax" | "strict",
-    secure: isProduction,
+    sameSite: (isCrossOrigin ? "none" : "lax") as "none" | "lax" | "strict",
+    secure: isCrossOrigin,
   };
   res.clearCookie("accessToken", clearOpts);
   res.clearCookie("refreshToken", clearOpts);
