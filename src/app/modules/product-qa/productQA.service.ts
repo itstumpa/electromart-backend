@@ -1,8 +1,8 @@
 // src/app/modules/product-qa/productQA.service.ts
 import { prisma } from '../../../lib/prisma';
-import { createNotification } from '../notification/notification.service';
-import { sendEmail } from '../../../utils/sendEmail';
 import ApiError from '../../../utils/apiErrors';
+import { sendEmail } from '../../../utils/sendEmail';
+import { createNotification } from '../notification/notification.service';
 
 // CUSTOMER — ask question
 export const askQuestion = async (customerId: string, productId: string, question: string) => {
@@ -27,7 +27,7 @@ export const askQuestion = async (customerId: string, productId: string, questio
 
   await sendEmail({
     to: product.store.owner.email,
-    subject: '❓ New Question on Your Product — ElectroMart',
+    subject: '❓ New Question on Your Product — Electromart',
     html: `
       <p>Hi ${product.store.owner.name},</p>
       <p>A customer asked a question about <strong>${product.name}</strong>:</p>
@@ -82,7 +82,7 @@ export const answerQuestion = async (questionId: string, vendorId: string, answe
 
   await sendEmail({
     to: qa.customer.email,
-    subject: '✅ Your Question Has Been Answered — ElectroMart',
+    subject: '✅ Your Question Has Been Answered — Electromart',
     html: `
       <p>Hi ${qa.customer.name},</p>
       <p>Your question about <strong>${qa.product.name}</strong>:</p>
@@ -121,7 +121,12 @@ export const getAdminQuestions = async () => {
 };
 
 // VENDOR/ADMIN — moderate a question (approve/reject)
-export const moderateQuestion = async (questionId: string, moderatorId: string, status: 'APPROVED' | 'REJECTED', isAdmin: boolean = false) => {
+export const moderateQuestion = async (
+  questionId: string,
+  moderatorId: string,
+  status: 'APPROVED' | 'REJECTED',
+  isAdmin: boolean = false
+) => {
   const qa = await prisma.productQuestion.findUnique({
     where: { id: questionId },
     include: { product: { include: { store: true } }, customer: true },

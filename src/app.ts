@@ -11,6 +11,7 @@ import swaggerUi from 'swagger-ui-express';
 import config from './app/config';
 import './app/config/passport';
 import { swaggerSpec } from './app/config/swagger';
+import { csrfProtection, generateCsrfToken } from './app/middlewares/csrf';
 import globalErrorHandler from './app/middlewares/globalErrorHandler';
 import notFound from './app/middlewares/notFound';
 import { globalLimiter } from './app/middlewares/rateLimiter';
@@ -21,9 +22,56 @@ import { initSocket } from './socket/socket';
 
 const app: Application = express();
 
-// ── Security ─────────────────────────────────────────────────────────────
-app.use(helmet());
-app.use(hpp());
+// Collect allowed origins for both CORS and CSP
+const allowedOrigins = Array.from(
+  new Set(
+    [config.client_url, config.frontend_url, process.env.LOCAL_FRONTEND_URL].filter((origin): origin is string => Boolean(origin))
+  )
+);
+
+// ── Security Headers (Helmet + CSP) ────────────────────────────────────
+const cspDirectives = {
+  defaultSrc: ["'self'"],
+  scriptSrc: ["'self'", 'https://js.stripe.com', 'https://cdn.jsdelivr.net'],
+  styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+  fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+  imgSrc: ["'self'", 'data:', 'blob:', 'https://res.cloudinary.com', 'https://*.stripe.com', ...allowedOrigins],
+  connectSrc: ["'self'", 'https://api.stripe.com', 'https://*.stripe.com', ...allowedOrigins],
+  frameSrc: ["'self'", 'https://js.stripe.com'],
+  objectSrc: ["'none'"],
+  ...(config.node_env === 'production' && { upgradeInsecureRequests: [] }),
+};
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: cspDirectives,
+    },
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
+
+// ── HTTP Parameter Pollution Protection ─────────────────────────────────
+app.use(
+  hpp({
+    whitelist: [
+      'category',
+      'brand',
+      'tags',
+      'id',
+      'status',
+      'sortBy',
+      'sortOrder',
+      'page',
+      'limit',
+      'price',
+      'rating',
+      'search',
+      'slug',
+    ],
+  })
+);
 // Near the top, after creating app
 if (config.node_env === 'production') {
   app.set('trust proxy', 1);
@@ -31,18 +79,13 @@ if (config.node_env === 'production') {
   app.set('trust proxy', false);
 }
 
-const corsOrigins = Array.from(
-  new Set(
-    [config.client_url, config.frontend_url, process.env.LOCAL_FRONTEND_URL].filter((origin): origin is string => Boolean(origin))
-  )
-);
-
 app.use(
   cors({
-    origin: corsOrigins.length > 1 ? corsOrigins : corsOrigins[0],
+    origin: allowedOrigins.length > 1 ? allowedOrigins : allowedOrigins[0],
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'PUT'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token'],
+    maxAge: 600,
   })
 );
 
@@ -68,6 +111,13 @@ app.use(passport.initialize());
 // ── Rate Limiting ──────────────────────────────────────────────────────
 app.use(globalLimiter);
 
+// ── CSRF Protection ────────────────────────────────────────────────────
+app.use('/api/v1', csrfProtection);
+app.get('/api/v1/auth/csrf-token', (req, res) => {
+  const token = generateCsrfToken(req, res);
+  res.json({ csrfToken: token });
+});
+
 // ── HTTP + Socket ──────────────────────────────────────────────────────
 const httpServer = http.createServer(app);
 initSocket(httpServer);
@@ -85,21 +135,23 @@ app.get('/', (_req: Request, res: Response) => {
 });
 
 // ── Swagger ────────────────────────────────────────────────────────────
-app.use(
-  '/api-docs',
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerSpec, {
-    customSiteTitle: 'ElectroMart API Docs',
-    swaggerOptions: { persistAuthorization: true },
-  })
-);
+if (config.node_env !== 'production') {
+  app.use(
+    '/api-docs',
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, {
+      customSiteTitle: 'Electromart API Docs',
+      swaggerOptions: { persistAuthorization: true },
+    })
+  );
+}
 
 // ── Health Check ───────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     uptime: process.uptime(),
-    service: 'electromart-api',
+    service: 'Electromart-api',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,

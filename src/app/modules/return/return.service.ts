@@ -1,9 +1,9 @@
 // src/app/modules/return/return.service.ts
 import { prisma } from '../../../lib/prisma';
 import ApiError from '../../../utils/apiErrors';
-import { createNotification } from '../notification/notification.service';
-import { sendEmail } from '../../../utils/sendEmail';
 import { returnRequestedEmail } from '../../../utils/emailTemplates';
+import { sendEmail } from '../../../utils/sendEmail';
+import { createNotification } from '../notification/notification.service';
 
 // CUSTOMER — request return on a delivered order item
 export const createReturnRequest = async (customerId: string, orderItemId: string, reason: string) => {
@@ -116,7 +116,7 @@ export const resolveReturnRequest = async (
 
   await sendEmail({
     to: returnRequest.customer.email,
-    subject: `Return Request ${status} — ElectroMart`,
+    subject: `Return Request ${status} — Electromart`,
     html: `
       <p>Hi ${returnRequest.customer.name},</p>
       <p>Your return request for <strong>${returnRequest.orderItem.product.name}</strong> has been <strong>${status}</strong>.</p>

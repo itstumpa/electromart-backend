@@ -33,7 +33,7 @@ router.post(
   validate(createProductSchema),
   ProductController.createProduct
 );
-router.get('/my/products', authenticate, authorize('VENDOR', 'CUSTOMER'), ProductController.getMyProducts);
+router.get('/my/products', authenticate, authorize('VENDOR'), ProductController.getMyProducts);
 router.patch(
   '/:id',
   authenticate,

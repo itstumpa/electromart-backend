@@ -1,8 +1,8 @@
 // src/app/modules/stock-alert/stockAlert.service.ts
 import { prisma } from '../../../lib/prisma';
-import { createNotification } from '../notification/notification.service';
-import { sendEmail } from '../../../utils/sendEmail';
 import ApiError from '../../../utils/apiErrors';
+import { sendEmail } from '../../../utils/sendEmail';
+import { createNotification } from '../notification/notification.service';
 
 // CUSTOMER — subscribe to stock alert
 export const subscribeToStockAlert = async (userId: string, productId: string) => {
@@ -75,7 +75,7 @@ export const notifyStockAlert = async (productId: string) => {
 
       await sendEmail({
         to: alert.user.email,
-        subject: `✅ "${product.name}" is Back In Stock — ElectroMart`,
+        subject: `✅ "${product.name}" is Back In Stock — Electromart`,
         html: `
           <p>Hi ${alert.user.name},</p>
           <p>Great news! <strong>${product.name}</strong> is back in stock.</p>

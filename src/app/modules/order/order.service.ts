@@ -1,4 +1,5 @@
 // src/app/modules/order/order.service.ts
+import crypto from 'crypto';
 import { OrderItemStatus, OrderStatus } from '@prisma/client';
 import { emailQueue } from '../../../jobs/queues/email.queue';
 import { notificationQueue } from '../../../jobs/queues/notification.queue';
@@ -108,7 +109,7 @@ const placeOrderBase = async (
   let couponId: string | undefined;
 
   if (couponCode) {
-    const coupon = await validateCoupon(couponCode, subtotal);
+    const coupon = await validateCoupon(couponCode, subtotal, owner);
     if (coupon.discountType === 'FIXED') {
       discount = coupon.discountValue;
     } else {
@@ -124,6 +125,28 @@ const placeOrderBase = async (
   const total = subtotal + shippingCost + tax - discount;
 
   const order = await prisma.$transaction(async (tx) => {
+    // ── Price revalidation (defense-in-depth) ───────────────────────────
+    // Re-fetch product prices within the transaction to prevent TOCTOU issues
+    const productIds = [...new Set(cart.items.map((i) => i.productId))];
+    const currentProducts = await tx.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, price: true },
+    });
+    const priceMap = new Map(currentProducts.map((p) => [p.id, Number(p.price)]));
+
+    for (const item of cart.items) {
+      const currentPrice = priceMap.get(item.productId);
+      if (currentPrice === undefined) {
+        throw new ApiError(400, `Product "${item.product.name}" is no longer available`);
+      }
+      if (currentPrice !== Number(item.product.price)) {
+        throw new ApiError(
+          409,
+          `Price for "${item.product.name}" has changed. Please review your cart and try again.`
+        );
+      }
+    }
+
     const orderData: any = {
       subtotal,
       shippingCost,
@@ -131,6 +154,7 @@ const placeOrderBase = async (
       total,
       discount,
       couponId: couponId ?? null,
+      id: crypto.randomUUID(), // Use UUID instead of predictable cuid()
       items: {
         create: cart.items.map((item) => ({
           productId: item.productId,

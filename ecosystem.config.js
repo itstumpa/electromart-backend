@@ -2,7 +2,7 @@
 module.exports = {
   apps: [
     {
-      name: "electromart-api",
+      name: "Electromart-api",
       script: "dist/server.js",
       instances: "max",        // use all CPU cores
       exec_mode: "cluster",

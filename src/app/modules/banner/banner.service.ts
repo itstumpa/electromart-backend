@@ -2,18 +2,13 @@ import { BannerType, Prisma } from '@prisma/client';
 import { prisma } from '../../../lib/prisma';
 import ApiError from '../../../utils/apiErrors';
 import { getOrSetCache, invalidateCachePattern } from '../../../utils/cache';
-import {
-  deleteFromCloudinary,
-  uploadToCloudinary,
-} from '../../../utils/uploadToCloudinary';
+import { deleteFromCloudinary, uploadToCloudinary } from '../../../utils/uploadToCloudinary';
 
 const BANNER_CACHE_PREFIX = 'banners:';
 const BANNER_CACHE_TTL = 300; // 5 minutes
 
 // ── helpers ──────────────────────────────────────────────────
-const toPrismaDate = (
-  val: string | null | undefined,
-): Date | null | undefined => {
+const toPrismaDate = (val: string | null | undefined): Date | null | undefined => {
   if (val === null) return null;
   if (val === undefined) return undefined;
   return new Date(val);
@@ -22,7 +17,7 @@ const toPrismaDate = (
 const collectBannerData = (
   data: Record<string, unknown>,
   imageUrl: string | null,
-  publicId: string | null,
+  publicId: string | null
 ): Prisma.BannerCreateInput => {
   const result: Record<string, unknown> = { ...data };
   result.startsAt = toPrismaDate(data.startsAt as string | null | undefined);
@@ -46,7 +41,7 @@ export const getActiveBannersByType = (type: BannerType) => {
         ],
       },
       orderBy: { order: 'asc' },
-    }),
+    })
   );
 };
 
@@ -62,15 +57,12 @@ export const getBannerById = async (id: string) => {
   return banner;
 };
 
-export const createBanner = async (
-  data: Record<string, unknown>,
-  file?: Express.Multer.File,
-) => {
+export const createBanner = async (data: Record<string, unknown>, file?: Express.Multer.File) => {
   let imageUrl: string | null = null;
   let publicId: string | null = null;
 
   if (file) {
-    const result = await uploadToCloudinary(file.buffer, 'electromart/banners');
+    const result = await uploadToCloudinary(file.buffer, 'Electromart/banners');
     imageUrl = result.secure_url;
     publicId = result.public_id;
   }
@@ -83,37 +75,23 @@ export const createBanner = async (
   return banner;
 };
 
-export const updateBanner = async (
-  id: string,
-  data: Record<string, unknown>,
-  file?: Express.Multer.File,
-) => {
+export const updateBanner = async (id: string, data: Record<string, unknown>, file?: Express.Multer.File) => {
   const existing = await prisma.banner.findUnique({ where: { id } });
   if (!existing) throw new ApiError(404, 'Banner not found');
 
-  let imageUrl: string | null | undefined = data.imageUrl as
-    | string
-    | null
-    | undefined;
-  let publicId: string | null | undefined = data.publicId as
-    | string
-    | null
-    | undefined;
+  let imageUrl: string | null | undefined = data.imageUrl as string | null | undefined;
+  let publicId: string | null | undefined = data.publicId as string | null | undefined;
 
   if (file) {
     if (existing.publicId) {
       await deleteFromCloudinary(existing.publicId).catch(() => null);
     }
-    const result = await uploadToCloudinary(file.buffer, 'electromart/banners');
+    const result = await uploadToCloudinary(file.buffer, 'Electromart/banners');
     imageUrl = result.secure_url;
     publicId = result.public_id;
   }
 
-  const prismaData = collectBannerData(
-    data,
-    imageUrl ?? null,
-    publicId ?? null,
-  );
+  const prismaData = collectBannerData(data, imageUrl ?? null, publicId ?? null);
 
   const banner = await prisma.banner.update({
     where: { id },

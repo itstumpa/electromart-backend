@@ -18,15 +18,14 @@
 //   });
 
 //   await transporter.sendMail({
-//     from: `"ElectroMart" <${process.env.SMTP_USER}>`,
+//     from: `"Electromart" <${process.env.SMTP_USER}>`,
 //     to: options.to,
 //     subject: options.subject,
 //     html: options.html,
 //   });
 // };
 
-
-import { BrevoClient } from "@getbrevo/brevo";
+import { BrevoClient } from '@getbrevo/brevo';
 
 const client = new BrevoClient({
   apiKey: process.env.BREVO_API_KEY as string,
@@ -44,7 +43,7 @@ export const sendEmail = async (options: EmailOptions): Promise<void> => {
     subject: options.subject,
     htmlContent: options.html,
     sender: {
-      name: "ElectroMart",
+      name: 'Electromart',
       email: process.env.BREVO_SENDER_EMAIL as string,
     },
   });

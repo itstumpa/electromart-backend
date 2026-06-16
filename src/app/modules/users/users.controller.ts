@@ -1,13 +1,12 @@
-import { Request, Response } from 'express';
-import * as UserService from './users.service';
-import sendResponse from '../../../utils/sendResponse';
-import catchAsync from '../../../utils/catchAsync';
 import { Role } from '@prisma/client';
-import { uploadToCloudinary } from '../../../utils/uploadToCloudinary';
-import ApiError from '../../../utils/apiErrors';
+import { Request, Response } from 'express';
 import { prisma } from '../../../lib/prisma';
+import ApiError from '../../../utils/apiErrors';
 import { invalidateCachePattern } from '../../../utils/cache';
-
+import catchAsync from '../../../utils/catchAsync';
+import sendResponse from '../../../utils/sendResponse';
+import { uploadToCloudinary } from '../../../utils/uploadToCloudinary';
+import * as UserService from './users.service';
 
 export const createUser = catchAsync(async (req: Request, res: Response) => {
   const user = await UserService.createUser(req.body);
@@ -15,7 +14,7 @@ export const createUser = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: 201,
     success: true,
-    message: "User created successfully",
+    message: 'User created successfully',
     data: user,
   });
 });
@@ -54,7 +53,7 @@ export const uploadAvatar = catchAsync(async (req: Request, res: Response) => {
   const file = req.file;
   if (!file) throw new ApiError(400, 'No image provided');
 
-  const result = await uploadToCloudinary(file.buffer, 'electromart/avatars');
+  const result = await uploadToCloudinary(file.buffer, 'Electromart/avatars');
 
   // Invalidate review caches for all products this user has reviewed
   const userReviews = await prisma.review.findMany({
@@ -62,9 +61,7 @@ export const uploadAvatar = catchAsync(async (req: Request, res: Response) => {
     select: { productId: true },
     distinct: ['productId'],
   });
-  await Promise.all(
-    userReviews.map((r) => invalidateCachePattern(`reviews:product:${r.productId}:*`))
-  );
+  await Promise.all(userReviews.map((r) => invalidateCachePattern(`reviews:product:${r.productId}:*`)));
 
   const user = await prisma.user.update({
     where: { id: req.user!.id },
@@ -83,7 +80,7 @@ export const uploadAvatar = catchAsync(async (req: Request, res: Response) => {
 export const deleteUser = catchAsync(async (req: Request, res: Response) => {
   const result = await UserService.deleteUser(req.params.id as string, req.user!.role, req.user!.id);
   sendResponse(res, {
-    statusCode: 200,        
+    statusCode: 200,
     success: true,
     message: 'User deleted successfully',
     data: result,
@@ -99,7 +96,6 @@ export const changeUserRole = catchAsync(async (req: Request, res: Response) => 
     data: user,
   });
 });
-
 
 export const getNotificationPrefs = catchAsync(async (req: Request, res: Response) => {
   const prefs = await UserService.getNotificationPrefs(req.user!.id);

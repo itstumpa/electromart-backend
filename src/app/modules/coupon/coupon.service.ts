@@ -238,7 +238,11 @@ export const applyCouponToCart = async (userId: string, code: string) => {
 };
 
 // internal — validate coupon at order placement (with cartTotal for min order check)
-export const validateCoupon = async (code: string, cartTotal?: number) => {
+export const validateCoupon = async (
+  code: string,
+  cartTotal?: number,
+  owner?: { userId: string } | { guestId: string }
+) => {
   const coupon = await prisma.coupon.findUnique({
     where: { code: code.toUpperCase() },
   });
@@ -253,6 +257,29 @@ export const validateCoupon = async (code: string, cartTotal?: number) => {
       400,
       `Minimum order amount of $${coupon.minOrderAmount.toFixed(2)} is required for this coupon`
     );
+  }
+
+  // Per-user coupon usage check — prevent a single user from reusing a coupon
+  if (owner) {
+    const existingUsage = "userId" in owner
+      ? await prisma.order.findFirst({
+          where: {
+            userId: owner.userId,
+            couponId: coupon.id,
+            status: { notIn: ["CANCELLED"] },
+          },
+        })
+      : await prisma.order.findFirst({
+          where: {
+            guestId: owner.guestId,
+            couponId: coupon.id,
+            status: { notIn: ["CANCELLED"] },
+          },
+        });
+
+    if (existingUsage) {
+      throw new ApiError(400, "This coupon code has already been used on another order");
+    }
   }
 
   // Return discountPercent for backward compatibility with order service

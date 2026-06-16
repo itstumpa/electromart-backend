@@ -6,7 +6,7 @@ export const orderConfirmedEmail = (
   totalAmount: number,
   items: { name: string; quantity: number; price: number }[]
 ) => ({
-  subject: "✅ Order Confirmed — ElectroMart",
+  subject: '✅ Order Confirmed — Electromart',
   html: `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
       <h2 style="color: #1a1a2e;">Hi ${customerName}, your order is confirmed!</h2>
@@ -29,11 +29,11 @@ export const orderConfirmedEmail = (
               <td>$${item.price}</td>
             </tr>`
             )
-            .join("")}
+            .join('')}
         </tbody>
       </table>
       <h3>Total: $${totalAmount}</h3>
-      <p>We'll notify you when your order ships. Thank you for shopping with ElectroMart!</p>
+      <p>We'll notify you when your order ships. Thank you for shopping with Electromart!</p>
     </div>
   `,
 });
@@ -44,42 +44,34 @@ export const newOrderVendorEmail = (
   orderId: string,
   items: { name: string; quantity: number }[]
 ) => ({
-  subject: "🛒 New Order Received — ElectroMart",
+  subject: '🛒 New Order Received — Electromart',
   html: `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
       <h2 style="color: #1a1a2e;">Hi ${vendorName}, you have a new order!</h2>
       <p>Store: <strong>${storeName}</strong></p>
       <p>Order ID: <strong>${orderId}</strong></p>
       <ul>
-        ${items.map((i) => `<li>${i.name} × ${i.quantity}</li>`).join("")}
+        ${items.map((i) => `<li>${i.name} × ${i.quantity}</li>`).join('')}
       </ul>
       <p>Log in to your vendor dashboard to process this order.</p>
     </div>
   `,
 });
 
-export const orderStatusUpdateEmail = (
-  customerName: string,
-  orderId: string,
-  status: string
-) => ({
-  subject: `📦 Order Update: ${status} — ElectroMart`,
+export const orderStatusUpdateEmail = (customerName: string, orderId: string, status: string) => ({
+  subject: `📦 Order Update: ${status} — Electromart`,
   html: `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
       <h2 style="color: #1a1a2e;">Hi ${customerName}, your order has been updated!</h2>
       <p>Order ID: <strong>${orderId}</strong></p>
       <p>New Status: <strong style="color: #e94560;">${status}</strong></p>
-      <p>Log in to ElectroMart to track your order.</p>
+      <p>Log in to Electromart to track your order.</p>
     </div>
   `,
 });
 
-export const returnRequestedEmail = (
-  vendorName: string,
-  productName: string,
-  reason: string
-) => ({
-  subject: "🔁 Return Request Received — ElectroMart",
+export const returnRequestedEmail = (vendorName: string, productName: string, reason: string) => ({
+  subject: '🔁 Return Request Received — Electromart',
   html: `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
       <h2 style="color: #1a1a2e;">Hi ${vendorName}, a return has been requested.</h2>

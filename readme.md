@@ -1,7 +1,7 @@
 ```
 ## 🚀 Live Demo
-[Backend] (https://electromart-backend-p77m.onrender.com)
-[Frontend](https://electromart-frontend-jet.vercel.app)
+[Backend] (https://Electromart-backend-p77m.onrender.com)
+[Frontend](https://Electromart-frontend-jet.vercel.app)
 
 ```
 
@@ -38,18 +38,19 @@ to stop everything:
 docker-compose down
 
 to check any error:
-docker logs electromart_app
+docker logs Electromart_app
 
 to check actually running:
 docker ps
 
 
-docker exec -it electromart_app sh
+docker exec -it Electromart_app sh
 npx prisma migrate dev --name init
 
 
 ## 🧒 Daily Routine From Now On
 ```
+
 ```
 1. Open Docker Desktop → leave it running
 2. Open VS Code terminal

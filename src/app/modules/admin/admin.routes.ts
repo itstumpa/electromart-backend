@@ -21,6 +21,7 @@ import express from 'express';
 import { authenticate } from '../../middlewares/authenticate';
 import { authorize } from '../../middlewares/authorize';
 import { validate } from '../../middlewares/validate';
+import { adminLimiter } from '../../middlewares/rateLimiter';
 import * as AdminController from './admin.controller';
 
 import {
@@ -32,6 +33,7 @@ import {
 
 const router = express.Router();
 router.use(authenticate, authorize('SUPER_ADMIN', 'ADMIN'));
+router.use(adminLimiter);
 
 /**
  * Only SUPER_ADMIN / ADMIN should access these routes

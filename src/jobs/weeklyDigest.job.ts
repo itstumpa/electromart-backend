@@ -74,7 +74,7 @@ const sendWeeklyDigest = async () => {
       batch.map((customer) =>
         sendEmail({
           to: customer.email,
-          subject: '🛍️ This Week on ElectroMart — Top Deals & New Arrivals',
+          subject: '🛍️ This Week on Electromart — Top Deals & New Arrivals',
           html: `
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto">
               <h2 style="color:#1a1a2e">Hi ${customer.name}, here's what's trending!</h2>
@@ -102,7 +102,7 @@ const sendWeeklyDigest = async () => {
               </table>
 
               <p style="margin-top:24px;font-size:12px;color:#999">
-                You're receiving this because you're a member of ElectroMart.
+                You're receiving this because you're a member of Electromart.
               </p>
             </div>
           `,

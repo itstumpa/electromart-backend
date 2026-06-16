@@ -18,7 +18,7 @@ export const signup = catchAsync(async (req: Request, res: Response) => {
 
 // ✅ Removed verifyEmailHandler — this is the single source of truth
 export const verifyEmail = catchAsync(async (req: Request, res: Response) => {
-  const token = req.query.token as string; // ✅ read from query param, not body
+  const token = req.body.token as string;
 
   if (!token) {
     throw new ApiError(400, "Invalid or missing token");

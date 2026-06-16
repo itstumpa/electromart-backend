@@ -1,7 +1,4 @@
-export const verifyEmailTemplate = (
-  name: string,
-  verifyUrl: string,
-) => {
+export const verifyEmailTemplate = (name: string, verifyUrl: string) => {
   return `
   <!DOCTYPE html>
   <html>
@@ -17,7 +14,7 @@ export const verifyEmailTemplate = (
             <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
               <tr>
                 <td style="background:#111827;padding:24px;text-align:center;">
-                  <h1 style="color:#ffffff;margin:0;font-size:28px;">ElectroMart</h1>
+                  <h1 style="color:#ffffff;margin:0;font-size:28px;">Electromart</h1>
                 </td>
               </tr>
 
@@ -30,7 +27,7 @@ export const verifyEmailTemplate = (
                   </p>
 
                   <p style="font-size:16px;color:#4b5563;line-height:1.7;">
-                    Thank you for creating your ElectroMart account. Please confirm your email address to activate your account and start using our platform.
+                    Thank you for creating your Electromart account. Please confirm your email address to activate your account and start using our platform.
                   </p>
 
                   <div style="text-align:center;margin:32px 0;">
@@ -59,7 +56,7 @@ export const verifyEmailTemplate = (
               <tr>
                 <td style="padding:24px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
                   <p style="margin:0;font-size:13px;color:#6b7280;">
-                    © 2026 ElectroMart. All rights reserved.
+                    © 2026 Electromart. All rights reserved.
                   </p>
                 </td>
               </tr>

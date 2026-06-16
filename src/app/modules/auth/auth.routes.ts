@@ -11,14 +11,13 @@ const router = Router();
 
 // ── Public ─────────────────────────────────────────────────────────────────
 router.post('/signup', optionalAuth, authLimiter, validate(signupSchema), authController.signup);
-router.get('/verify-email', authController.verifyEmail);
-router.post('/resend-verification', authController.resendEmailVerification);
-// router.post('/signin', authLimiter, validate(signinSchema), authController.signin);
-router.post('/signin', optionalAuth, validate(signinSchema), authController.signin);
-router.post('/refresh-token', authController.refreshToken);
+router.post('/verify-email', authLimiter, authController.verifyEmail);
+router.post('/resend-verification', authLimiter, authController.resendEmailVerification);
+router.post('/signin', optionalAuth, authLimiter, validate(signinSchema), authController.signin);
+router.post('/refresh-token', authLimiter, authController.refreshToken);
 router.post('/forgot-password', authLimiter, validate(forgotPasswordSchema), authController.requestPasswordReset);
-router.post('/verify-reset-code', authController.verifyResetCode);
-router.post('/reset-password', authController.resetPasswordController);
+router.post('/verify-reset-code', authLimiter, authController.verifyResetCode);
+router.post('/reset-password', authLimiter, authController.resetPasswordController);
 
 // ── Protected ───────────────────────────────────────────────────────────────
 router.use(authenticate);

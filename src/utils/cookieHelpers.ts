@@ -30,6 +30,11 @@ export function setAuthCookies(
 }
 
 export function clearAuthCookies(res: Response) {
-  res.clearCookie("accessToken", { path: "/", sameSite: cookieOptions.sameSite });
-  res.clearCookie("refreshToken", { path: "/", sameSite: cookieOptions.sameSite });
+  const clearOpts = {
+    path: "/",
+    sameSite: cookieOptions.sameSite,
+    secure: isProduction,
+  };
+  res.clearCookie("accessToken", clearOpts);
+  res.clearCookie("refreshToken", clearOpts);
 }

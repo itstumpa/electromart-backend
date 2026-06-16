@@ -78,11 +78,11 @@ export const createProduct = catchAsync(async (req: Request, res: Response) => {
   }
 
   const variants = typeof req.body.variants === 'string' ? JSON.parse(req.body.variants) : req.body.variants;
-  const specifications = typeof req.body.specifications === 'string' ? JSON.parse(req.body.specifications) : req.body.specifications;
+  const specifications =
+    typeof req.body.specifications === 'string' ? JSON.parse(req.body.specifications) : req.body.specifications;
 
   // Parse rich-text JSON fields (they arrive as strings via multipart/form-data)
-  const parseJsonField = (field: unknown) =>
-    typeof field === 'string' ? JSON.parse(field) : field;
+  const parseJsonField = (field: unknown) => (typeof field === 'string' ? JSON.parse(field) : field);
 
   const overview = parseJsonField(req.body.overview);
   const details = parseJsonField(req.body.details);
@@ -122,8 +122,8 @@ export const getProductBySlug = catchAsync(async (req: Request, res: Response) =
 
 export const getAllProducts = catchAsync(async (req: Request, res: Response) => {
   const { categoryId, storeId, search, minPrice, maxPrice, page, limit, sortBy, sortOrder, onSale } = req.query;
-  
-  const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(req.user?.role as string ?? '');
+
+  const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes((req.user?.role as string) ?? '');
 
   const result = await ProductService.getAllProducts(
     {
@@ -186,14 +186,14 @@ export const updateProduct = catchAsync(async (req: Request, res: Response) => {
     req.params.id as string,
     req.user!.id,
     { ...bodyWithoutImageUrl, removeImageIds, newImages },
-    isAdmin,
+    isAdmin
   );
 
   sendResponse(res, { statusCode: 200, success: true, message: 'Product updated successfully', data: product });
 });
 
 export const deleteProduct = catchAsync(async (req: Request, res: Response) => {
-  const isAdmin = req.user!.role === 'ADMIN';
+  const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(req.user!.role as string);
   const result = await ProductService.deleteProduct(req.params.id as string, req.user!.id, isAdmin);
   sendResponse(res, { statusCode: 200, success: true, message: result.message, data: null });
 });
@@ -222,7 +222,7 @@ export const uploadProductImages = catchAsync(async (req: Request, res: Response
     files.map((file, index) =>
       uploadQueue.add(`upload-${index}`, {
         fileBuffer: file.buffer.toString('base64'), // serialize for queue
-        folder: 'electromart/products',
+        folder: 'Electromart/products',
         productId: product.id,
         ownerId: req.user!.id,
       })
@@ -230,7 +230,7 @@ export const uploadProductImages = catchAsync(async (req: Request, res: Response
   );
 
   // upload all files to cloudinary in parallel
-  const uploads = await Promise.all(files.map((file) => uploadToCloudinary(file.buffer, `electromart/products`)));
+  const uploads = await Promise.all(files.map((file) => uploadToCloudinary(file.buffer, `Electromart/products`)));
 
   // save image records to DB
   const images = await prisma.$transaction(
@@ -382,7 +382,7 @@ export const getRecommendations = catchAsync(async (req: Request, res: Response)
 export const getAllProductsAdmin = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await ProductService.getAllProducts(
-      { ...req.query, includeInactive: true },  // force include inactive
+      { ...req.query, includeInactive: true }, // force include inactive
       req.query
     );
     res.json({ success: true, ...result });
