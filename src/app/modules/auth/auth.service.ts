@@ -23,7 +23,7 @@ const generateAccessToken = (userId: string, role: string) =>
   });
 
 const generateRefreshToken = (userId: string) =>
-  jwt.sign({ sub: userId }, process.env.JWT_REFRESH_SECRET as string, {
+  jwt.sign({ sub: userId, jti: crypto.randomUUID() }, process.env.JWT_REFRESH_SECRET as string, {
     expiresIn: REFRESH_EXPIRES,
   });
 
@@ -313,7 +313,26 @@ export const refreshToken = async (token: string, res: Response) => {
   try {
     const payload = jwt.verify(token, config.refreshSecret as string) as {
       sub: string;
+      jti?: string;
     };
+
+    // ── C-4: Refresh token replay protection ──
+    if (payload.jti) {
+      try {
+        const { getRedis } = await import('../../config/redis');
+        const redis = getRedis();
+        const blacklisted = await redis.get(`bl_rt:${payload.jti}`);
+        if (blacklisted) {
+          // Token reuse detected — likely a stolen token replay
+          throw new ApiError(401, "Invalid or expired refresh token");
+        }
+        // Blacklist this token — it's being rotated
+        await redis.set(`bl_rt:${payload.jti}`, '1', 'EX', 7 * 24 * 60 * 60);
+      } catch {
+        // Redis unavailable — skip (graceful degradation)
+      }
+    }
+    // ────────────────────────────────────────────
 
     const user = await prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user) throw new ApiError(401, "User not found");
